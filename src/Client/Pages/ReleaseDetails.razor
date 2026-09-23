@@ -1,0 +1,45 @@
+@page "/releases/{Id}"
+@inject ReleaseNotesApiClient Api
+
+<PageTitle>Release detail</PageTitle>
+
+@if (release is null)
+{
+    <div class="empty-state">Loading release detail...</div>
+}
+else
+{
+    <div class="detail-topline"><NavLink href="/">← All releases</NavLink><span>@release.Project / @release.BuildNumber</span></div>
+    <section class="detail-heading">
+        <p class="eyebrow">RELEASE NOTE / @release.BuildDate.ToLocalTime().ToString("dd MMM yyyy")</p>
+        <h1>@release.BuildNumber</h1>
+        <p class="detail-meta">@release.Project · @release.SourceBranch · <a href=@release.BuildUri target="_blank" rel="noreferrer">Open build ↗</a></p>
+    </section>
+    <div class="detail-grid">
+        <section class="detail-panel">
+            <div class="panel-heading"><h2>Work items</h2><span>@release.WorkItems.Count.ToString("00")</span></div>
+            @foreach (var item in release.WorkItems)
+            {
+                <a class="work-item" href=@item.Url target="_blank" rel="noreferrer">
+                    <span class="work-id">#@item.Id</span><span><strong>@item.Title</strong><small>@item.Type · @item.State</small></span><span>↗</span>
+                </a>
+            }
+        </section>
+        <section class="detail-panel">
+            <div class="panel-heading"><h2>Commit history</h2><span>@release.Commits.Count.ToString("00")</span></div>
+            @foreach (var commit in release.Commits)
+            {
+                <a class="commit-item" href=@commit.Url target="_blank" rel="noreferrer">
+                    <span class="commit-dot"></span><span><strong>@commit.Message</strong><small>@commit.Author · @commit.Timestamp.ToLocalTime().ToString("dd MMM, HH:mm")</small></span><span>↗</span>
+                </a>
+            }
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter] public string Id { get; set; } = string.Empty;
+    private ReleaseNoteDocument? release;
+
+    protected override async Task OnParametersSetAsync() => release = await Api.GetAsync(Id);
+}

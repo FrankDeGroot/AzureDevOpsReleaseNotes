@@ -1,0 +1,25 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  releaseNotesApiUrl: 'https://YOUR_STATIC_WEB_APP_HOST/api/releases/compile'
+
+steps:
+- task: PowerShell@2
+  displayName: Compile release notes
+  inputs:
+    targetType: inline
+    script: |
+      $payload = @{
+        organization = "$(System.CollectionUri)".TrimEnd('/') -replace '^https://dev.azure.com/', ''
+        project = "$(System.TeamProject)"
+        projectId = "$(System.TeamProjectId)"
+        buildId = [int]"$(Build.BuildId)"
+        repositoryId = "$(Build.Repository.ID)"
+      } | ConvertTo-Json
+
+      $headers = @{ Authorization = "Bearer $(System.AccessToken)" }
+      Invoke-RestMethod -Method Post -Uri "$(releaseNotesApiUrl)" -Headers $headers -Body $payload -ContentType 'application/json'

@@ -1,0 +1,52 @@
+﻿@page "/"
+@inject ReleaseNotesState State
+
+<PageTitle>Release dashboard</PageTitle>
+
+<section class="dashboard-heading">
+	<div>
+		<p class="eyebrow">RELEASE ARCHIVE / LIVE VIEW</p>
+		<h1>Release<br /><em>notes.</em></h1>
+		<p class="lede">A chronological record of what shipped, who moved it, and why it matters.</p>
+	</div>
+	<div class="heading-mark" aria-hidden="true">↗</div>
+</section>
+
+<section class="metric-strip" aria-label="Release summary">
+	<div><span>Total releases</span><strong>@State.Releases.Count.ToString("00")</strong></div>
+	<div><span>Work items</span><strong>@State.Releases.Sum(release => release.WorkItems.Count).ToString("00")</strong></div>
+	<div><span>Commits tracked</span><strong>@State.Releases.Sum(release => release.Commits.Count).ToString("00")</strong></div>
+</section>
+
+@if (State.IsLoading)
+{
+	<div class="empty-state">Loading release archive...</div>
+}
+else if (State.Error is not null)
+{
+	<div class="empty-state error-state">Unable to reach the release archive. @State.Error</div>
+}
+else if (State.Releases.Count == 0)
+{
+	<div class="empty-state">No compiled releases yet.</div>
+}
+else
+{
+	<section class="release-list">
+		<div class="list-header"><span>Build</span><span>Project</span><span>Shipped</span><span>Change</span><span></span></div>
+		@foreach (var release in State.Releases)
+		{
+			<NavLink class="release-row" href=@($"releases/{release.Id}")>
+				<span class="build-number">@release.BuildNumber</span>
+				<span>@release.Project</span>
+				<span>@release.BuildDate.ToLocalTime().ToString("dd MMM yyyy")</span>
+				<span class="counts"><b>@release.WorkItems.Count</b> work items / <b>@release.Commits.Count</b> commits</span>
+				<span class="row-arrow" aria-hidden="true">↗</span>
+			</NavLink>
+		}
+	</section>
+}
+
+@code {
+	protected override async Task OnInitializedAsync() => await State.LoadAsync();
+}

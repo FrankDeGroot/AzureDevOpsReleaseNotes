@@ -1,0 +1,11 @@
+# Build output
+**/bin/
+**/obj/
+
+# Visual Studio local state
+.vs/
+*.user
+*.suo
+
+# Bicep build output
+infra/*.json

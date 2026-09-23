@@ -1,0 +1,113 @@
+name: Azure Static Web Apps CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  build_and_deploy_job:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    name: Build and Deploy Job
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: false
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy infrastructure
+        id: deploy_infrastructure
+        run: |
+          static_web_app_name=$(az deployment sub create \
+            --name "release-notes-${{ github.run_id }}" \
+            --location germanywestcentral \
+            --template-file infra/main.bicep \
+            --parameters resourceNameSuffix="${{ vars.AZURE_RESOURCE_SUFFIX }}" \
+            --query 'properties.outputs.staticWebAppName.value' \
+            --output tsv)
+          echo "static_web_app_name=$static_web_app_name" >> "$GITHUB_OUTPUT"
+
+      - name: Get Static Web App deployment token
+        id: static_web_app_token
+        env:
+          STATIC_WEB_APP_NAME: ${{ steps.deploy_infrastructure.outputs.static_web_app_name }}
+        run: |
+          deployment_token=$(az staticwebapp secrets list \
+            --name "$STATIC_WEB_APP_NAME" \
+            --resource-group rg-azure-devops-release-notes \
+            --query 'properties.apiKey' \
+            --output tsv)
+          echo "::add-mask::$deployment_token"
+          echo "token=$deployment_token" >> "$GITHUB_OUTPUT"
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Run Tests
+        run: dotnet test --configuration Release
+
+      - name: Build and Deploy
+        id: builddeploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.static_web_app_token.outputs.token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          ###### Repository/Build Configurations ######
+          app_location: "src/Client"
+          api_location: "src/Api"
+          output_location: "wwwroot"
+          ###### End of Repository/Build Configurations ######
+
+  close_pull_request_job:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close Pull Request Job
+    steps:
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get Static Web App deployment token
+        id: static_web_app_token
+        run: |
+          deployment_token=$(az staticwebapp secrets list \
+            --name "swa-release-notes-${{ vars.AZURE_RESOURCE_SUFFIX }}" \
+            --resource-group rg-azure-devops-release-notes \
+            --query 'properties.apiKey' \
+            --output tsv)
+          echo "::add-mask::$deployment_token"
+          echo "token=$deployment_token" >> "$GITHUB_OUTPUT"
+
+      - name: Close Pull Request
+        id: closepullrequest
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.static_web_app_token.outputs.token }}
+          action: "close"

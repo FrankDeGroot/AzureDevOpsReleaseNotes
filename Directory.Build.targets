@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <GenerateMvcApplicationPartsAssemblyAttributes>false</GenerateMvcApplicationPartsAssemblyAttributes>
+  </PropertyGroup>
+
+  <Target Name="_ClearCopyUpToDateMarker" BeforeTargets="_CopyFilesMarkedCopyLocal">
+    <ItemGroup>
+      <CopyUpToDateMarker Remove="@(CopyUpToDateMarker)" />
+    </ItemGroup>
+  </Target>
+</Project>
