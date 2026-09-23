@@ -39,9 +39,9 @@ jobs:
         run: |
           static_web_app_name=$(az deployment sub create \
             --name "release-notes-${{ github.run_id }}" \
-            --location germanywestcentral \
+            --location "${{ vars.AZURE_LOCATION }}" \
             --template-file infra/main.bicep \
-            --parameters resourceNameSuffix="${{ vars.AZURE_RESOURCE_SUFFIX }}" \
+            --parameters location="${{ vars.AZURE_LOCATION }}" resourceNameSuffix="${{ vars.AZURE_RESOURCE_SUFFIX }}" \
             --query 'properties.outputs.staticWebAppName.value' \
             --output tsv)
           echo "static_web_app_name=$static_web_app_name" >> "$GITHUB_OUTPUT"

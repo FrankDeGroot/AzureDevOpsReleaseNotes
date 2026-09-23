@@ -22,7 +22,7 @@ See [proposal.md](proposal.md) for motivation and [the deployment capability spe
 
 ### Use a subscription-scope Bicep entry point with a resource-group module
 
-The entry point will create `rg-azure-devops-release-notes` at `germanywestcentral`, then invoke a resource-group-scoped module for the workload resources. This lets a first deployment create the fixed resource group while keeping workload resources scoped where they live.
+The entry point will create `rg-azure-devops-release-notes` in the configured Azure region, then invoke a resource-group-scoped module for the workload resources. This lets a first deployment create the fixed resource group while keeping workload resources scoped where they live.
 
 Resource names that must be globally unique, including the Static Web App and Cosmos account, will derive from a short parameterized suffix. The deployment will output the Static Web App name and default hostname so the workflow and README do not reconstruct resource identifiers.
 

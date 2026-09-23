@@ -7,13 +7,13 @@ Provide repeatable, economical Azure provisioning and GitHub-based deployment fo
 ## ADDED Requirements
 
 ### Requirement: Declarative Azure workload provisioning
-The repository SHALL provide a Bicep deployment that creates resource group `rg-azure-devops-release-notes` in Germany West Central and provisions an Azure Static Web App with an integrated API and an Azure Cosmos DB account for release-note storage. The deployment SHALL configure the Static Web App with the Cosmos connection string and the `release-notes` database and `releases` container names expected by the application.
+The repository SHALL provide a Bicep deployment that creates resource group `rg-azure-devops-release-notes` in the configured Azure region and provisions an Azure Static Web App with an integrated API and an Azure Cosmos DB account for release-note storage. The deployment SHALL configure the Static Web App with the Cosmos connection string and the `release-notes` database and `releases` container names expected by the application.
 
 The deployment SHALL select free or lowest-cost supported service tiers. The Cosmos DB account SHALL enable the account free tier and use serverless capacity.
 
 #### Scenario: Provision a new environment
 - **WHEN** an authorized operator deploys the Bicep definition to an Azure subscription
-- **THEN** `rg-azure-devops-release-notes` is created in Germany West Central with an Azure Static Web App and a Cosmos DB account
+- **THEN** `rg-azure-devops-release-notes` is created in the configured Azure region with an Azure Static Web App and a Cosmos DB account
 - **AND** the Static Web App API receives the Cosmos configuration required to persist release notes
 
 #### Scenario: Reapply the deployment
@@ -39,7 +39,7 @@ The workflow SHALL continue to run tests before publishing application artifacts
 ### Requirement: Deployment setup documentation
 The README SHALL document the Bicep deployment layout, the Azure subscription and GitHub federated-identity prerequisites, the repository configuration values required by the workflow, and how to identify the deployed Static Web App endpoint for the Azure DevOps release-notes pipeline.
 
-The documentation SHALL state that the deployment targets resource group `rg-azure-devops-release-notes` in Germany West Central and identify the cost-sensitive service tier selections.
+The documentation SHALL state that the deployment targets resource group `rg-azure-devops-release-notes` in the configured Azure region and identify the cost-sensitive service tier selections.
 
 #### Scenario: Configure a new repository deployment
 - **WHEN** a maintainer follows the README for a new repository deployment

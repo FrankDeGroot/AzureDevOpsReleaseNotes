@@ -6,7 +6,7 @@ targetScope = 'subscription'
 param resourceNameSuffix string
 
 @description('Azure region for the release-notes workload.')
-param location string = 'germanywestcentral'
+param location string
 
 var resourceGroupName = 'rg-azure-devops-release-notes'
 

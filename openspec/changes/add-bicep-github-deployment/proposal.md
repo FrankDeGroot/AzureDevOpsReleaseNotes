@@ -6,7 +6,7 @@ The application has a GitHub Actions workflow that deploys to an Azure Static We
 
 ## What Changes
 
-- Add Bicep infrastructure definitions that create resource group `rg-azure-devops-release-notes` in Germany West Central and provision the Azure resources required by the existing Static Web Apps, Functions API, and Cosmos-backed release-note storage architecture.
+- Add Bicep infrastructure definitions that create resource group `rg-azure-devops-release-notes` in the configured Azure region and provision the Azure resources required by the existing Static Web Apps, Functions API, and Cosmos-backed release-note storage architecture.
 - Configure provisioned resources with free-tier or lowest-cost settings where the platform supports them, including Cosmos DB free-tier usage and a low-cost serverless throughput configuration.
 - Extend the GitHub Actions deployment workflow to authenticate to Azure, deploy the Bicep resources, obtain the Static Web App deployment token, and then deploy the application.
 - Document Azure and GitHub prerequisites, required repository configuration, deployment commands or workflow inputs, and the deployed endpoint update required by the Azure DevOps pipeline.
