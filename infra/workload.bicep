@@ -51,9 +51,9 @@ resource staticWebAppSettings 'Microsoft.Web/staticSites/config@2023-12-01' = {
   parent: staticWebApp
   name: 'appsettings'
   properties: {
-    'Cosmos:ConnectionString': cosmosAccount.listConnectionStrings().connectionStrings[0].connectionString
-    'Cosmos:Database': 'release-notes'
-    'Cosmos:Container': 'releases'
+    'Cosmos__ConnectionString': cosmosAccount.listConnectionStrings().connectionStrings[0].connectionString
+    'Cosmos__Database': 'release-notes'
+    'Cosmos__Container': 'releases'
   }
 }
 

@@ -5,6 +5,7 @@
     "ghcr.io/devcontainers/features/node:2": {
       "version": "lts"
     },
+    "ghcr.io/devcontainers/features/azure-cli:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
   "onCreateCommand": "sudo apt-get update && sudo apt-get install -y ripgrep",
@@ -13,11 +14,12 @@
       "extensions": [
         "ms-dotnettools.csdevkit",
         "ms-dotnettools.csharp",
+        "ms-azuretools.vscode-bicep",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode"
       ]
     }
   },
-  "postCreateCommand": "npm install -g @fission-ai/openspec@latest",
+  "postCreateCommand": "npm install -g @fission-ai/openspec@latest @azure/static-web-apps-cli azure-functions-core-tools@4",
   "remoteUser": "vscode"
 }
