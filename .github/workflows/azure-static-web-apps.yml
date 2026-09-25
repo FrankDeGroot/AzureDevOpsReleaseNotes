@@ -69,6 +69,12 @@ jobs:
       - name: Run Tests
         run: dotnet test --configuration Release
 
+      - name: Build and Publish Client (Blazor WebAssembly)
+        run: dotnet publish src/Client/Client.csproj -c Release -o bin/client-publish
+
+      - name: Build and Publish API (Azure Functions)
+        run: dotnet publish src/Api/Api.csproj -c Release -o bin/api-publish
+
       - name: Build and Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
@@ -77,9 +83,11 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
           ###### Repository/Build Configurations ######
-          app_location: "src/Client"
-          api_location: "src/Api"
-          output_location: "wwwroot"
+          app_location: "bin/client-publish/wwwroot"
+          api_location: "bin/api-publish"
+          output_location: ""
+          skip_app_build: true
+          skip_api_build: true
           ###### End of Repository/Build Configurations ######
 
   close_pull_request_job:
