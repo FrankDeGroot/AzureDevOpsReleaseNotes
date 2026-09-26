@@ -28,3 +28,5 @@ output staticWebAppName string = workload.outputs.staticWebAppName
 output staticWebAppDefaultHostname string = workload.outputs.staticWebAppDefaultHostname
 output functionAppName string = workload.outputs.functionAppName
 output functionAppDefaultHostname string = workload.outputs.functionAppDefaultHostname
+output appInsightsName string = workload.outputs.appInsightsName
+output appInsightsConnectionString string = workload.outputs.appInsightsConnectionString

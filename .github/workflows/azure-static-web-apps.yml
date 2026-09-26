@@ -46,6 +46,7 @@ jobs:
             --output json)
           echo "static_web_app_name=$(echo "$deployment_json" | jq -r '.staticWebAppName.value')" >> "$GITHUB_OUTPUT"
           echo "function_app_name=$(echo "$deployment_json" | jq -r '.functionAppName.value')" >> "$GITHUB_OUTPUT"
+          echo "app_insights_connection_string=$(echo "$deployment_json" | jq -r '.appInsightsConnectionString.value')" >> "$GITHUB_OUTPUT"
 
       - name: Get Static Web App deployment token
         id: static_web_app_token
@@ -71,7 +72,13 @@ jobs:
         run: dotnet test --configuration Release
 
       - name: Build and Publish Client (Blazor WebAssembly)
-        run: dotnet publish src/Client/Client.csproj -c Release -o bin/client-publish
+        env:
+          APP_INSIGHTS_CONNECTION_STRING: ${{ steps.deploy_infrastructure.outputs.app_insights_connection_string }}
+        run: |
+          if [ -n "$APP_INSIGHTS_CONNECTION_STRING" ] && [ "$APP_INSIGHTS_CONNECTION_STRING" != "null" ]; then
+            jq --arg cs "$APP_INSIGHTS_CONNECTION_STRING" '.ApplicationInsights.ConnectionString = $cs' src/Client/wwwroot/appsettings.json > src/Client/wwwroot/appsettings.json.tmp && mv src/Client/wwwroot/appsettings.json.tmp src/Client/wwwroot/appsettings.json
+          fi
+          dotnet publish src/Client/Client.csproj -c Release -o bin/client-publish
 
       - name: Build and Publish API (Azure Functions)
         run: dotnet publish src/Api/Api.csproj -c Release -o bin/api-publish

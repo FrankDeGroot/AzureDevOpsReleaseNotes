@@ -14,6 +14,8 @@ var cosmosAccountName = 'cosmosreleasenotes${resourceNameSuffix}'
 var storageAccountName = take('stfn${replace(toLower(resourceNameSuffix), '-', '')}', 24)
 var hostingPlanName = 'asp-release-notes-${resourceNameSuffix}'
 var functionAppName = 'func-release-notes-${resourceNameSuffix}'
+var logAnalyticsWorkspaceName = 'log-release-notes-${resourceNameSuffix}'
+var appInsightsName = 'appi-release-notes-${resourceNameSuffix}'
 var deploymentContainerName = 'app-package'
 
 resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-08-15' = {
@@ -71,6 +73,29 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01'
 resource deploymentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   parent: blobService
   name: deploymentContainerName
+}
+
+resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
+  name: logAnalyticsWorkspaceName
+  location: location
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 30
+  }
+}
+
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: appInsightsName
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    Flow_Type: 'Bluefield'
+    Request_Source: 'rest'
+    WorkspaceResourceId: logAnalyticsWorkspace.id
+  }
 }
 
 resource hostingPlan 'Microsoft.Web/serverfarms@2023-12-01' = {
@@ -143,6 +168,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'Cosmos__Container'
           value: 'releases'
         }
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: appInsights.properties.ConnectionString
+        }
       ]
     }
   }
@@ -205,3 +234,5 @@ output staticWebAppName string = staticWebApp.name
 output staticWebAppDefaultHostname string = staticWebApp.properties.defaultHostname
 output functionAppName string = functionApp.name
 output functionAppDefaultHostname string = functionApp.properties.defaultHostName
+output appInsightsName string = appInsights.name
+output appInsightsConnectionString string = appInsights.properties.ConnectionString
