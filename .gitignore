@@ -9,3 +9,6 @@
 
 # Bicep build output
 infra/*.json
+
+# Build output
+publish/
