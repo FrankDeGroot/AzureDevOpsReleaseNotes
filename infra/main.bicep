@@ -16,7 +16,6 @@ resource workloadResourceGroup 'Microsoft.Resources/resourceGroups@2024-03-01' =
 }
 
 module workload 'workload.bicep' = {
-  name: 'releaseNotesWorkload'
   scope: workloadResourceGroup
   params: {
     location: location
@@ -27,3 +26,5 @@ module workload 'workload.bicep' = {
 output resourceGroupName string = workloadResourceGroup.name
 output staticWebAppName string = workload.outputs.staticWebAppName
 output staticWebAppDefaultHostname string = workload.outputs.staticWebAppDefaultHostname
+output functionAppName string = workload.outputs.functionAppName
+output functionAppDefaultHostname string = workload.outputs.functionAppDefaultHostname

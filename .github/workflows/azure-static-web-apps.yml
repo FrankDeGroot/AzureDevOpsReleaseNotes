@@ -37,14 +37,15 @@ jobs:
       - name: Deploy infrastructure
         id: deploy_infrastructure
         run: |
-          static_web_app_name=$(az deployment sub create \
+          deployment_json=$(az deployment sub create \
             --name "release-notes-${{ github.run_id }}" \
             --location "${{ vars.AZURE_LOCATION }}" \
             --template-file infra/main.bicep \
             --parameters location="${{ vars.AZURE_LOCATION }}" resourceNameSuffix="${{ vars.AZURE_RESOURCE_SUFFIX }}" \
-            --query 'properties.outputs.staticWebAppName.value' \
-            --output tsv)
-          echo "static_web_app_name=$static_web_app_name" >> "$GITHUB_OUTPUT"
+            --query 'properties.outputs' \
+            --output json)
+          echo "static_web_app_name=$(echo "$deployment_json" | jq -r '.staticWebAppName.value')" >> "$GITHUB_OUTPUT"
+          echo "function_app_name=$(echo "$deployment_json" | jq -r '.functionAppName.value')" >> "$GITHUB_OUTPUT"
 
       - name: Get Static Web App deployment token
         id: static_web_app_token
@@ -75,7 +76,13 @@ jobs:
       - name: Build and Publish API (Azure Functions)
         run: dotnet publish src/Api/Api.csproj -c Release -o bin/api-publish
 
-      - name: Build and Deploy
+      - name: Deploy API (Azure Functions)
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ steps.deploy_infrastructure.outputs.function_app_name }}
+          package: bin/api-publish
+
+      - name: Deploy Client (Azure Static Web Apps)
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
@@ -84,7 +91,7 @@ jobs:
           action: "upload"
           ###### Repository/Build Configurations ######
           app_location: "bin/client-publish/wwwroot"
-          api_location: "bin/api-publish"
+          api_location: ""
           output_location: ""
           skip_app_build: true
           skip_api_build: true
