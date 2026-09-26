@@ -10,11 +10,19 @@ public interface IReleaseNoteStore
     Task<ReleaseNoteDocument?> GetAsync(string id, string? projectId, CancellationToken cancellationToken);
 }
 
-public sealed class CosmosReleaseNoteStore(IConfiguration configuration) : IReleaseNoteStore
+public sealed class CosmosReleaseNoteStore(IConfiguration configuration) : IReleaseNoteStore, IExternalConnectionHealthCheck
 {
     private readonly CosmosClient client = new(configuration["Cosmos:ConnectionString"] ?? "https://localhost:8081/", new CosmosClientOptions { ConnectionMode = ConnectionMode.Gateway });
     private readonly string databaseName = configuration["Cosmos:Database"] ?? "release-notes";
     private readonly string containerName = configuration["Cosmos:Container"] ?? "releases";
+
+    public string Name => "cosmosDb";
+
+    public async Task<string> CheckAsync(CancellationToken cancellationToken)
+    {
+        await client.GetContainer(databaseName, containerName).ReadContainerAsync(cancellationToken: cancellationToken);
+        return "Database and container reachable.";
+    }
 
     public async Task<ReleaseNoteDocument> UpsertAsync(ReleaseNoteDocument document, CancellationToken cancellationToken)
     {
