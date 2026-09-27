@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using Microsoft.Extensions.Logging;
 using Shared;
 
 namespace Client.Services;
@@ -18,7 +19,7 @@ public sealed class ReleaseNotesApiClient(HttpClient httpClient)
     }
 }
 
-public sealed class ReleaseNotesState(ReleaseNotesApiClient apiClient)
+public sealed class ReleaseNotesState(ReleaseNotesApiClient apiClient, ILogger<ReleaseNotesState> logger)
 {
     public IReadOnlyList<ReleaseNoteDocument> Releases { get; private set; } = [];
     public bool IsLoading { get; private set; }
@@ -35,6 +36,7 @@ public sealed class ReleaseNotesState(ReleaseNotesApiClient apiClient)
         catch (HttpRequestException exception)
         {
             Error = exception.Message;
+            logger.LogError(exception, "Failed to load release notes.");
         }
         finally
         {
