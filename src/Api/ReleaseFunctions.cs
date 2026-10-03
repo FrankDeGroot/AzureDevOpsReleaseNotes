@@ -29,8 +29,6 @@ public sealed class ReleaseFunctions(ReleaseNoteCompiler compiler, IReleaseNoteS
             return await ErrorAsync(request, HttpStatusCode.BadRequest, "organization, project, buildId, and repositoryId are required.");
         }
 
-        var accessToken = GetBearerToken(request);
-        input.AccessToken = string.IsNullOrWhiteSpace(input.AccessToken) ? accessToken ?? string.Empty : input.AccessToken;
         input.ProjectId = string.IsNullOrWhiteSpace(input.ProjectId) ? input.Project : input.ProjectId;
         var response = request.CreateResponse(HttpStatusCode.OK);
         await response.WriteAsJsonAsync(await compiler.CompileAsync(input, cancellationToken), cancellationToken);
@@ -62,17 +60,6 @@ public sealed class ReleaseFunctions(ReleaseNoteCompiler compiler, IReleaseNoteS
         var response = request.CreateResponse(HttpStatusCode.OK);
         await response.WriteAsJsonAsync(document, cancellationToken);
         return response;
-    }
-
-    private static string? GetBearerToken(HttpRequestData request)
-    {
-        if (!request.Headers.TryGetValues("Authorization", out var values))
-        {
-            return null;
-        }
-
-        var value = values.FirstOrDefault();
-        return value?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) == true ? value[7..] : value;
     }
 
     private static string? GetQuery(Uri uri, string key)

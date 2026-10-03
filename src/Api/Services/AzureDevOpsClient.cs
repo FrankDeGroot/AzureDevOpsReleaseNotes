@@ -1,11 +1,14 @@
+using Azure.Core;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Shared;
 
 namespace Api.Services;
 
-public sealed class AzureDevOpsClient(HttpClient httpClient, IConfiguration configuration)
+public sealed class AzureDevOpsClient(HttpClient httpClient, TokenCredential credential)
 {
+    private static readonly TokenRequestContext DevOpsTokenContext = new(["https://app.vssps.visualstudio.com/.default"]);
+
     public async Task<AzureBuild> GetBuildAsync(CompileRequest request, CancellationToken cancellationToken)
     {
         using var response = await SendAsync(request, $"https://dev.azure.com/{Uri.EscapeDataString(request.Organization)}/{Uri.EscapeDataString(request.Project)}/_apis/build/builds/{request.BuildId}?api-version=7.1", cancellationToken);
@@ -57,11 +60,8 @@ public sealed class AzureDevOpsClient(HttpClient httpClient, IConfiguration conf
     private async Task<HttpResponseMessage> SendAsync(CompileRequest request, string url, CancellationToken cancellationToken)
     {
         using var message = new HttpRequestMessage(HttpMethod.Get, url);
-        var token = string.IsNullOrWhiteSpace(request.AccessToken) ? configuration["AzureDevOps:AccessToken"] : request.AccessToken;
-        if (!string.IsNullOrWhiteSpace(token))
-        {
-            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        }
+        var token = await credential.GetTokenAsync(DevOpsTokenContext, cancellationToken);
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Token);
 
         var response = await httpClient.SendAsync(message, cancellationToken);
         response.EnsureSuccessStatusCode();

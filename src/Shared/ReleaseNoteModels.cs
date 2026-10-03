@@ -40,5 +40,4 @@ public sealed class CompileRequest
     public string ProjectId { get; set; } = string.Empty;
     public int BuildId { get; set; }
     public string RepositoryId { get; set; } = string.Empty;
-    public string AccessToken { get; set; } = string.Empty;
 }
