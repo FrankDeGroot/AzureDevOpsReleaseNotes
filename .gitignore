@@ -12,3 +12,5 @@ infra/*.json
 
 # Build output
 publish/
+
+.env*

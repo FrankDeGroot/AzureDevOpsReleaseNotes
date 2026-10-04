@@ -12,7 +12,14 @@ public interface IReleaseNoteStore
 
 public sealed class CosmosReleaseNoteStore(IConfiguration configuration) : IReleaseNoteStore, IExternalConnectionHealthCheck
 {
-    private readonly CosmosClient client = new(configuration["Cosmos:ConnectionString"] ?? "https://localhost:8081/", new CosmosClientOptions { ConnectionMode = ConnectionMode.Gateway });
+    private readonly CosmosClient client = new(configuration["Cosmos:ConnectionString"] ?? "https://localhost:8081/", new CosmosClientOptions
+    {
+        ConnectionMode = ConnectionMode.Gateway,
+        SerializerOptions = new CosmosSerializationOptions
+        {
+            PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase
+        }
+    });
     private readonly string databaseName = configuration["Cosmos:Database"] ?? "release-notes";
     private readonly string containerName = configuration["Cosmos:Container"] ?? "releases";
 
