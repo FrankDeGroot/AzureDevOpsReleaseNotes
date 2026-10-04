@@ -39,7 +39,8 @@ else
 
 @code {
     [Parameter] public string Id { get; set; } = string.Empty;
+    [SupplyParameterFromQuery] public string? ProjectId { get; set; }
     private ReleaseNoteDocument? release;
 
-    protected override async Task OnParametersSetAsync() => release = await Api.GetAsync(Id);
+    protected override async Task OnParametersSetAsync() => release = await Api.GetAsync(Id, ProjectId);
 }

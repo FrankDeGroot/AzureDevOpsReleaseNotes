@@ -36,7 +36,7 @@ else
 		<div class="list-header"><span>Build</span><span>Project</span><span>Shipped</span><span>Change</span><span></span></div>
 		@foreach (var release in State.Releases)
 		{
-			<NavLink class="release-row" href=@($"releases/{release.Id}")>
+			<NavLink class="release-row" href=@($"releases/{Uri.EscapeDataString(release.Id)}?projectId={Uri.EscapeDataString(release.ProjectId)}")>
 				<span class="build-number">@release.BuildNumber</span>
 				<span>@release.Project</span>
 				<span>@release.BuildDate.ToLocalTime().ToString("dd MMM yyyy")</span>

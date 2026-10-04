@@ -55,9 +55,17 @@ public sealed class CosmosReleaseNoteStore(IConfiguration configuration) : IRele
     public async Task<ReleaseNoteDocument?> GetAsync(string id, string? projectId, CancellationToken cancellationToken)
     {
         var container = await GetContainerAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(projectId))
+        {
+            using var iterator = container.GetItemQueryIterator<ReleaseNoteDocument>(
+                new QueryDefinition("SELECT TOP 1 * FROM c WHERE c.id = @id").WithParameter("@id", id));
+            var results = await iterator.ReadNextAsync(cancellationToken);
+            return results.Resource.FirstOrDefault();
+        }
+
         try
         {
-            var response = await container.ReadItemAsync<ReleaseNoteDocument>(id, new PartitionKey(projectId ?? string.Empty), cancellationToken: cancellationToken);
+            var response = await container.ReadItemAsync<ReleaseNoteDocument>(id, new PartitionKey(projectId), cancellationToken: cancellationToken);
             return response.Resource;
         }
         catch (CosmosException exception) when (exception.StatusCode == System.Net.HttpStatusCode.NotFound)
