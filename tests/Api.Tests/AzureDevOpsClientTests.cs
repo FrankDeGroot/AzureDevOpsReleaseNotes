@@ -1,3 +1,4 @@
+using Azure.Core;
 using System.Net;
 using System.Text;
 using Api.Services;
@@ -15,20 +16,26 @@ public sealed class AzureDevOpsClientTests
         {
             Content = new StringContent("""{"count":1,"value":[{"id":"abc123","message":"Ship it","author":{"displayName":"Ada"},"timestamp":"2026-01-01T12:00:00Z","location":"https://dev.azure.com/commit/abc123"}]}""", Encoding.UTF8, "application/json")
         });
-        var client = new AzureDevOpsClient(new HttpClient(handler), new ConfigurationBuilder().Build());
+        var client = new AzureDevOpsClient(new HttpClient(handler), new StaticTokenCredential("token"));
 
         var changes = await client.GetChangesAsync(new CompileRequest
         {
             Organization = "contoso",
             Project = "release-notes",
-            BuildId = 42,
-            AccessToken = "token"
+            BuildId = 42
         }, CancellationToken.None);
 
         Assert.Single(changes);
         Assert.Equal("abc123", changes[0].Id);
         Assert.Equal("Ada", changes[0].Author);
         Assert.Equal("Bearer", handler.LastRequest?.Headers.Authorization?.Scheme);
+    }
+
+    private sealed class StaticTokenCredential(string token) : TokenCredential
+    {
+        public override AccessToken GetToken(TokenRequestContext requestContext, CancellationToken cancellationToken) => new(token, DateTimeOffset.UtcNow.AddMinutes(5));
+
+        public override ValueTask<AccessToken> GetTokenAsync(TokenRequestContext requestContext, CancellationToken cancellationToken) => ValueTask.FromResult(GetToken(requestContext, cancellationToken));
     }
 
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responseFactory) : HttpMessageHandler
