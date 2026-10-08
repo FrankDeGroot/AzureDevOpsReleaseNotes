@@ -11,7 +11,9 @@ builder.Services
     .AddApplicationInsightsTelemetryWorkerService()
     .ConfigureFunctionsApplicationInsights();
 
-builder.Services.AddSingleton<TokenCredential>(_ => new ManagedIdentityCredential());
+builder.Services.AddSingleton<TokenCredential>(_ => builder.Environment.IsDevelopment()
+    ? new DefaultAzureCredential()
+    : new ManagedIdentityCredential());
 builder.Services.AddHttpClient<AzureDevOpsClient>();
 builder.Services.AddHttpClient<IExternalConnectionHealthCheck, AzureDevOpsHealthCheck>();
 builder.Services.AddSingleton<CosmosReleaseNoteStore>();

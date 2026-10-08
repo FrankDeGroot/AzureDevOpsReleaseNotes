@@ -1,6 +1,7 @@
 # Build output
 **/bin/
 **/obj/
+publish/
 
 # Visual Studio local state
 .vs/
@@ -10,7 +11,8 @@
 # Bicep build output
 infra/*.json
 
-# Build output
-publish/
-
+# Environment variables
 .env*
+
+# Node.js dependencies
+node_modules/

@@ -1,3 +1,5 @@
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.Azure.Cosmos;
 using Shared;
 
@@ -10,18 +12,36 @@ public interface IReleaseNoteStore
     Task<ReleaseNoteDocument?> GetAsync(string id, string? projectId, CancellationToken cancellationToken);
 }
 
-public sealed class CosmosReleaseNoteStore(IConfiguration configuration) : IReleaseNoteStore, IExternalConnectionHealthCheck
+public sealed class CosmosReleaseNoteStore : IReleaseNoteStore, IExternalConnectionHealthCheck
 {
-    private readonly CosmosClient client = new(configuration["Cosmos:ConnectionString"] ?? "https://localhost:8081/", new CosmosClientOptions
+    private readonly CosmosClient client;
+    private readonly string databaseName;
+    private readonly string containerName;
+
+    public CosmosReleaseNoteStore(IConfiguration configuration, IHostEnvironment environment)
     {
-        ConnectionMode = ConnectionMode.Gateway,
-        SerializerOptions = new CosmosSerializationOptions
+        var connectionString = configuration["Cosmos:ConnectionString"] ?? "https://localhost:8081/";
+        var clientOptions = new CosmosClientOptions
         {
-            PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase
+            ConnectionMode = ConnectionMode.Gateway,
+            SerializerOptions = new CosmosSerializationOptions
+            {
+                PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase
+            }
+        };
+
+        if (environment.IsDevelopment() && HasLoopbackAccountEndpoint(connectionString))
+        {
+            clientOptions.HttpClientFactory = () => new HttpClient(new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = ValidateLocalEmulatorCertificate
+            });
         }
-    });
-    private readonly string databaseName = configuration["Cosmos:Database"] ?? "release-notes";
-    private readonly string containerName = configuration["Cosmos:Container"] ?? "releases";
+
+        client = new CosmosClient(connectionString, clientOptions);
+        databaseName = configuration["Cosmos:Database"] ?? "release-notes";
+        containerName = configuration["Cosmos:Container"] ?? "releases";
+    }
 
     public string Name => "cosmosDb";
 
@@ -79,5 +99,31 @@ public sealed class CosmosReleaseNoteStore(IConfiguration configuration) : IRele
         var database = await client.CreateDatabaseIfNotExistsAsync(databaseName, cancellationToken: cancellationToken);
         var container = await database.Database.CreateContainerIfNotExistsAsync(containerName, "/projectId", cancellationToken: cancellationToken);
         return container.Container;
+    }
+
+    private static bool HasLoopbackAccountEndpoint(string connectionString)
+    {
+        var endpointSetting = connectionString.StartsWith("AccountEndpoint=", StringComparison.OrdinalIgnoreCase)
+            ? connectionString["AccountEndpoint=".Length..].Split(';')[0]
+            : connectionString;
+        return Uri.TryCreate(endpointSetting, UriKind.Absolute, out var endpoint) && endpoint.IsLoopback;
+    }
+
+    private static bool ValidateLocalEmulatorCertificate(
+        HttpRequestMessage request,
+        X509Certificate2? certificate,
+        X509Chain? chain,
+        SslPolicyErrors errors)
+    {
+        if (errors == SslPolicyErrors.None)
+        {
+            return true;
+        }
+
+        return errors == SslPolicyErrors.RemoteCertificateChainErrors
+            && request.RequestUri?.IsLoopback == true
+            && certificate?.GetNameInfo(X509NameType.DnsName, false) == "localhost"
+            && chain?.ChainStatus.Length > 0
+            && chain.ChainStatus.All(status => status.Status == X509ChainStatusFlags.UntrustedRoot);
     }
 }
