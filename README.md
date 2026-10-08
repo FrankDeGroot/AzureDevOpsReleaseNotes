@@ -76,7 +76,7 @@ Locally, the API uses the Cosmos DB emulator and the real Azure DevOps service t
 | Variable | Purpose |
 | --- | --- |
 | `RELEASE_NOTES_API_URL` | API base URL. Defaults to `http://localhost:7071/api`. |
-| `FUNCTION_KEY` | Optional. Sent as `x-functions-key`. The local host does not require it. |
+| `FUNCTION_KEY` | Optional. Sent as the `code` query parameter. The local host does not require it. |
 | `AZURE_DEVOPS_ORGANIZATION`, `AZURE_DEVOPS_PROJECT`, `AZURE_DEVOPS_PROJECT_ID`, `AZURE_DEVOPS_REPOSITORY_ID`, `AZURE_DEVOPS_BUILD_ID` | The test build, written by the setup script. When any of these is missing, the tests fail and name the missing keys. |
 
 Don't run `dotnet test` on the whole solution while the local host is running. Rebuilding `src/Api` under a running host breaks its function registrations, and you have to restart the host.
@@ -131,7 +131,7 @@ This command creates or updates the resource group and workload without requirin
 
 ### 3. Deploy with GitHub Actions
 
-After the repository variables and federated credential are configured, push to `main` or use **Run workflow** for [.github/workflows/azure-static-web-apps.yml](.github/workflows/azure-static-web-apps.yml). The workflow authenticates with Azure, deploys Bicep, and runs the Release unit tests (`Category!=Integration`). It then deploys the Functions API and runs the integration tests against the deployed Function App: it retrieves and masks the default function key, sets `RELEASE_NOTES_API_URL` to `https://<function-app-hostname>/api`, waits for the API to respond, and runs `tests/Api.IntegrationTests`. Any integration failure fails the run before the Blazor client is uploaded.
+After the repository variables and federated credential are configured, push to `main` or use **Run workflow** for [.github/workflows/azure-static-web-apps.yml](.github/workflows/azure-static-web-apps.yml). The workflow authenticates with Azure, deploys Bicep, and runs the Release unit tests (`Category!=Integration`). It then deploys the Functions API and runs the integration tests through the Static Web App. The Static Web App's linked backend makes the Function App reject direct calls, so the tests can't call the Function App's own URL. The step retrieves and masks the default function key, sets `RELEASE_NOTES_API_URL` to `https://<static-web-app-hostname>/api`, waits for the API to respond, and runs `tests/Api.IntegrationTests`. The tests send the key as the `code` query parameter, because the Static Web App proxy drops the `x-functions-key` header. Any integration failure fails the run before the Blazor client is uploaded.
 
 ### 4. Set up the Azure DevOps test project
 

@@ -39,7 +39,7 @@
 ## 3. Integration test project
 
 - [x] 3.1 Create the xUnit project `tests/Api.IntegrationTests` (net10.0) that references `src/Shared`, and add it to `ReleaseNotes.slnx`. Verify that `dotnet build ReleaseNotes.slnx` succeeds.
-- [x] 3.2 Add a settings helper that reads `RELEASE_NOTES_API_URL` (default `http://localhost:7071/api`), `FUNCTION_KEY`, and the `AZURE_DEVOPS_*` variables. It fails with one message listing the missing keys and naming the setup script. Add an `HttpClient` factory that sets the `x-functions-key` header and a timeout of about 100 s. Verify that running with `AZURE_DEVOPS_BUILD_ID` unset fails with that message.
+- [x] 3.2 Add a settings helper that reads `RELEASE_NOTES_API_URL` (default `http://localhost:7071/api`), `FUNCTION_KEY`, and the `AZURE_DEVOPS_*` variables. It fails with one message listing the missing keys and naming the setup script. Add an `HttpClient` factory that sends the function key as the `code` query parameter and uses a timeout of about 100 s. Verify that running with `AZURE_DEVOPS_BUILD_ID` unset fails with that message.
 - [x] 3.3 Add an `IAsyncLifetime` fixture that compiles the configured build once, plus `[Trait("Category","Integration")]` tests for:
   - the compile response (ID, build number, at least one commit, at least one work item);
   - `GET releases/{id}?projectId=` read-back;
@@ -53,7 +53,7 @@
 ## 4. GitHub Actions integration
 
 - [x] 4.1 Change the pre-deploy step to `dotnet test --configuration Release --filter "Category!=Integration"`. Verify locally that the same command runs no integration tests (the test count equals the `Api.Tests` count).
-- [x] 4.2 Expose `function_app_default_hostname` from the deploy step's outputs. After the Functions deploy, add a step that:
+- [x] 4.2 Expose `static_web_app_hostname` from the deploy step's outputs. After the Functions deploy, add a step that targets `https://<static-web-app-hostname>/api` and:
   - gets and masks `functionKeys.default` with `az functionapp keys list`;
   - polls `GET /api/releases` (readiness; also creates the Cosmos container) with a bounded retry;
   - runs `dotnet test tests/Api.IntegrationTests -c Release --filter Category=Integration` with `RELEASE_NOTES_API_URL`, `FUNCTION_KEY`, and the `vars.AZURE_DEVOPS_*` values in `env`.

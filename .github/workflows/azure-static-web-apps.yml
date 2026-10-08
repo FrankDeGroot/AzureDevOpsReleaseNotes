@@ -45,8 +45,8 @@ jobs:
             --query 'properties.outputs' \
             --output json)
           echo "static_web_app_name=$(echo "$deployment_json" | jq -r '.staticWebAppName.value')" >> "$GITHUB_OUTPUT"
+          echo "static_web_app_hostname=$(echo "$deployment_json" | jq -r '.staticWebAppDefaultHostname.value')" >> "$GITHUB_OUTPUT"
           echo "function_app_name=$(echo "$deployment_json" | jq -r '.functionAppName.value')" >> "$GITHUB_OUTPUT"
-          echo "function_app_default_hostname=$(echo "$deployment_json" | jq -r '.functionAppDefaultHostname.value')" >> "$GITHUB_OUTPUT"
           echo "app_insights_connection_string=$(echo "$deployment_json" | jq -r '.appInsightsConnectionString.value')" >> "$GITHUB_OUTPUT"
 
       - name: Get Static Web App deployment token
@@ -93,7 +93,7 @@ jobs:
       - name: Run Integration Tests (deployed API)
         env:
           FUNCTION_APP_NAME: ${{ steps.deploy_infrastructure.outputs.function_app_name }}
-          FUNCTION_APP_HOSTNAME: ${{ steps.deploy_infrastructure.outputs.function_app_default_hostname }}
+          STATIC_WEB_APP_HOSTNAME: ${{ steps.deploy_infrastructure.outputs.static_web_app_hostname }}
           AZURE_DEVOPS_ORGANIZATION: ${{ vars.AZURE_DEVOPS_ORGANIZATION }}
           AZURE_DEVOPS_PROJECT: ${{ vars.AZURE_DEVOPS_PROJECT }}
           AZURE_DEVOPS_PROJECT_ID: ${{ vars.AZURE_DEVOPS_PROJECT_ID }}
@@ -107,7 +107,8 @@ jobs:
             --output tsv)
           echo "::add-mask::$function_key"
           export FUNCTION_KEY="$function_key"
-          export RELEASE_NOTES_API_URL="https://$FUNCTION_APP_HOSTNAME/api"
+          # The linked backend only accepts requests through the Static Web App.
+          export RELEASE_NOTES_API_URL="https://$STATIC_WEB_APP_HOSTNAME/api"
 
           # GET releases also creates the Cosmos container, which health only reads.
           for attempt in $(seq 1 20); do

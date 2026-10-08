@@ -8,7 +8,7 @@ The API's only tests are unit tests with fakes, so nothing verifies that the Fun
 
 - Add a black-box HTTP integration test suite that calls a running API by base URL. It checks the `health` endpoint for both dependencies, compiles release notes for a known Azure DevOps build (this calls Azure DevOps and writes to Cosmos DB), and reads the stored record back from Cosmos DB through `GET releases/{id}` and `GET releases`.
 - Run the suite locally against the Functions host on `localhost:7071`. Cosmos DB comes from the dev-container emulator, and Azure DevOps is the real cloud service, reached through the developer's `az login`.
-- Exclude the suite from the existing unit-test step in GitHub Actions. Run it after the Function App is deployed, against the deployed Function App URL, using a function key retrieved at runtime.
+- Exclude the suite from the existing unit-test step in GitHub Actions. Run it after the Function App is deployed, against the deployed API through the Static Web App URL, using a function key retrieved at runtime.
 - **BREAKING**: Remove `pipelines/azure-pipelines.yml`. Replace it with an idempotent PowerShell script that creates or reuses an Azure DevOps project, Git repo, seed commit, linked work item, YAML pipeline, and a completed build. The script also grants the deployed Function App's managed identity read access to that project. It writes the resulting IDs back to `.env`.
 - Add a committed example `.env.example.ps1` (the real `.env` / `.env.ps1` stay ignored). Add a PowerShell script that reads `.env` and then:
   - pushes GitHub Actions repository variables and secrets with `gh`;

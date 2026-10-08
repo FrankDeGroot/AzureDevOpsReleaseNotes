@@ -36,7 +36,7 @@ The suite reads its settings from environment variables:
 | Variable | Purpose |
 | --- | --- |
 | `RELEASE_NOTES_API_URL` | API base URL. Defaults to `http://localhost:7071/api`. |
-| `FUNCTION_KEY` | Optional function key, sent as `x-functions-key`. |
+| `FUNCTION_KEY` | Optional function key, sent as the `code` query parameter. |
 | `AZURE_DEVOPS_ORGANIZATION` | Azure DevOps organization. |
 | `AZURE_DEVOPS_PROJECT` | Azure DevOps project name. |
 | `AZURE_DEVOPS_PROJECT_ID` | Azure DevOps project ID. |
@@ -59,14 +59,16 @@ An `IAsyncLifetime` class fixture posts the compile request once and stores the 
 Compiling first guarantees the Cosmos database and container exist before `GET health` runs, which avoids the empty-emulator false negative described in Context. HTTP timeouts are generous (about 100 s) to allow for a cold start on the Flex Consumption plan.
 - *Alternative:* have health create the container. This was rejected because it changes API behavior, which is a non-goal.
 
-### 4. Deployed run: function key and URL from Azure CLI after deploy
+### 4. Deployed run: through the Static Web App, function key from Azure CLI after deploy
 After `Azure/functions-action`, a new workflow step:
 1. runs `az functionapp keys list -g rg-azure-devops-release-notes -n <functionAppName> --query functionKeys.default` and passes the result to `::add-mask::`;
-2. sets `RELEASE_NOTES_API_URL=https://<functionAppDefaultHostname>/api`, using the existing `functionAppDefaultHostname` Bicep output, which the deploy step adds to `$GITHUB_OUTPUT`;
+2. sets `RELEASE_NOTES_API_URL=https://<staticWebAppDefaultHostname>/api`, using the `staticWebAppDefaultHostname` Bicep output, which the deploy step adds to `$GITHUB_OUTPUT`;
 3. runs the integration project.
 
 The step polls `GET releases` for a short time before running tests, to absorb the deployment's cold start and propagation. It polls `GET releases` rather than `GET health` because `GET releases` creates the Cosmos container on a fresh account, while `GET health` only reads it.
-- *Alternative:* call through the Static Web App `/api` linked backend. This was rejected because it adds SWA routing as a variable and is not needed to prove that the API reaches Cosmos DB and Azure DevOps.
+
+The Static Web App linked backend turns on App Service authentication on the Function App, so direct calls to `*.azurewebsites.net` return 401 even with a valid key. The SWA proxy also drops the `x-functions-key` header but forwards the `code` query parameter. The test client therefore appends `code=<key>` to every request. Both behaviors were observed in workflow run 37795902140.
+- *Alternative:* call the Function App URL directly. This was rejected because it would require disabling the authentication the linked backend sets up.
 
 ### 5. Azure DevOps setup script uses REST plus an Azure CLI token (no `azure-devops` extension, no PAT)
 `scripts/Initialize-AzureDevOpsTestProject.ps1` obtains its Azure DevOps token with `az account get-access-token --resource 499b84ac-1321-427f-aa17-267ca6975798` and calls the Azure DevOps REST APIs with `Invoke-RestMethod`. Each step is a get-or-create:

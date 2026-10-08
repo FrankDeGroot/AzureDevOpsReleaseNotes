@@ -58,12 +58,25 @@ public sealed record IntegrationSettings(
 
     public HttpClient CreateClient()
     {
-        var client = new HttpClient { BaseAddress = ApiBaseUrl, Timeout = TimeSpan.FromSeconds(100) };
+        HttpMessageHandler handler = new HttpClientHandler();
         if (FunctionKey is not null)
         {
-            client.DefaultRequestHeaders.Add("x-functions-key", FunctionKey);
+            handler = new FunctionKeyHandler(FunctionKey) { InnerHandler = handler };
         }
 
-        return client;
+        return new HttpClient(handler) { BaseAddress = ApiBaseUrl, Timeout = TimeSpan.FromSeconds(100) };
+    }
+
+    // The Static Web App proxy drops the x-functions-key header but forwards the code query parameter.
+    private sealed class FunctionKeyHandler(string functionKey) : DelegatingHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var uri = new UriBuilder(request.RequestUri!);
+            var code = $"code={Uri.EscapeDataString(functionKey)}";
+            uri.Query = string.IsNullOrEmpty(uri.Query) ? code : $"{uri.Query.TrimStart('?')}&{code}";
+            request.RequestUri = uri.Uri;
+            return base.SendAsync(request, cancellationToken);
+        }
     }
 }

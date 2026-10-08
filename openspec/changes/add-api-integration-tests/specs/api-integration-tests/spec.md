@@ -7,7 +7,7 @@ Verifies end to end that the release-notes Functions API reaches its real extern
 ## ADDED Requirements
 
 ### Requirement: Integration tests target a running API by base URL
-The integration test suite SHALL send HTTP requests to a running API. The API base URL comes from configuration. When no base URL is configured, the suite SHALL use the local Functions host at `http://localhost:7071/api`. When a function key is configured, the suite SHALL send it in the `x-functions-key` header.
+The integration test suite SHALL send HTTP requests to a running API. The API base URL comes from configuration. When no base URL is configured, the suite SHALL use the local Functions host at `http://localhost:7071/api`. When a function key is configured, the suite SHALL send it as the `code` query parameter.
 
 #### Scenario: Default local target
 - **WHEN** the suite runs without a configured base URL
@@ -15,7 +15,7 @@ The integration test suite SHALL send HTTP requests to a running API. The API ba
 
 #### Scenario: Deployed target with function key
 - **WHEN** the suite runs with a configured deployed base URL and function key
-- **THEN** every request targets that base URL and includes the key in the `x-functions-key` header
+- **THEN** every request targets that base URL and includes the key as the `code` query parameter
 
 ### Requirement: Integration tests are isolated from unit tests
 Integration tests SHALL be categorized so that a filtered `dotnet test` run can exclude them, and so that they can be run on their own.
@@ -69,7 +69,7 @@ The suite SHALL run against a locally hosted API that uses the dev-container Cos
 - **THEN** the tests pass using the Cosmos DB emulator and the Azure DevOps test project
 
 ### Requirement: Deployed integration run in GitHub Actions
-The GitHub Actions workflow SHALL exclude integration tests from its pre-deploy test step. After deploying the Function App, it SHALL run the suite against the deployed Function App URL, using a function key retrieved at runtime and masked in logs. The workflow SHALL fail if any integration test fails.
+The GitHub Actions workflow SHALL exclude integration tests from its pre-deploy test step. After deploying the Function App, it SHALL run the suite against the deployed API through the Static Web App URL, using a function key retrieved at runtime and masked in logs. The workflow SHALL fail if any integration test fails.
 
 #### Scenario: Pre-deploy tests
 - **WHEN** the workflow runs its pre-deploy test step
@@ -77,7 +77,7 @@ The GitHub Actions workflow SHALL exclude integration tests from its pre-deploy 
 
 #### Scenario: Post-deploy integration tests
 - **WHEN** the Function App deployment step succeeds
-- **THEN** the workflow runs the integration suite against the deployed Function App URL with a masked function key and the Azure DevOps test settings from repository variables
+- **THEN** the workflow runs the integration suite against the Static Web App `/api` URL with a masked function key and the Azure DevOps test settings from repository variables
 
 #### Scenario: Integration failure fails the workflow
 - **WHEN** any integration test fails against the deployed API
