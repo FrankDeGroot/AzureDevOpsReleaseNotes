@@ -31,6 +31,30 @@ public sealed class AzureDevOpsClientTests
         Assert.Equal("Bearer", handler.LastRequest?.Headers.Authorization?.Scheme);
     }
 
+    [Fact]
+    public async Task GetWorkItemsAsync_accepts_string_ids_from_build_work_items()
+    {
+        var handler = new StubHandler(request => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(request.RequestUri!.AbsolutePath.Contains("/build/builds/")
+                ? """{"count":1,"value":[{"id":"66","url":"https://dev.azure.com/_apis/wit/workItems/66"}]}"""
+                : """{"count":1,"value":[{"id":66,"fields":{"System.Title":"Seed","System.State":"To Do","System.WorkItemType":"Task"},"_links":{"html":{"href":"https://dev.azure.com/wi/66"}}}]}""", Encoding.UTF8, "application/json")
+        });
+        var client = new AzureDevOpsClient(new HttpClient(handler), new StaticTokenCredential("token"));
+
+        var workItems = await client.GetWorkItemsAsync(new CompileRequest
+        {
+            Organization = "contoso",
+            Project = "release-notes",
+            BuildId = 42
+        }, CancellationToken.None);
+
+        Assert.Single(workItems);
+        Assert.Equal(66, workItems[0].Id);
+        Assert.Equal("Seed", workItems[0].Title);
+        Assert.Contains("ids=66", handler.LastRequest?.RequestUri?.Query);
+    }
+
     private sealed class StaticTokenCredential(string token) : TokenCredential
     {
         public override AccessToken GetToken(TokenRequestContext requestContext, CancellationToken cancellationToken) => new(token, DateTimeOffset.UtcNow.AddMinutes(5));

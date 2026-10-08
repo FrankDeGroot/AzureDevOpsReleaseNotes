@@ -35,7 +35,7 @@ public sealed class AzureDevOpsClient(HttpClient httpClient, TokenCredential cre
     {
         using var response = await SendAsync(request, $"https://dev.azure.com/{Uri.EscapeDataString(request.Organization)}/{Uri.EscapeDataString(request.Project)}/_apis/build/builds/{request.BuildId}/workitems?api-version=7.1", cancellationToken);
         using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
-        var ids = document.RootElement.GetProperty("value").EnumerateArray().Select(item => item.TryGetProperty("id", out var id) && id.TryGetInt32(out var value) ? value : 0).Where(id => id > 0).Distinct().ToArray();
+        var ids = document.RootElement.GetProperty("value").EnumerateArray().Select(item => item.TryGetProperty("id", out var id) ? ParseId(id) : 0).Where(id => id > 0).Distinct().ToArray();
         if (ids.Length == 0)
         {
             return [];
@@ -69,6 +69,14 @@ public sealed class AzureDevOpsClient(HttpClient httpClient, TokenCredential cre
     }
 
     private static string GetField(JsonElement fields, string name) => fields.TryGetProperty(name, out var field) ? field.GetString() ?? string.Empty : string.Empty;
+
+    // The build work items API returns ids as strings.
+    private static int ParseId(JsonElement id) => id.ValueKind switch
+    {
+        JsonValueKind.Number when id.TryGetInt32(out var number) => number,
+        JsonValueKind.String when int.TryParse(id.GetString(), out var text) => text,
+        _ => 0
+    };
 }
 
 public sealed record AzureBuild(int Id, string BuildNumber, string SourceBranch, DateTime BuildDate, string Uri);

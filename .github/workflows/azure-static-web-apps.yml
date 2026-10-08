@@ -46,6 +46,7 @@ jobs:
             --output json)
           echo "static_web_app_name=$(echo "$deployment_json" | jq -r '.staticWebAppName.value')" >> "$GITHUB_OUTPUT"
           echo "function_app_name=$(echo "$deployment_json" | jq -r '.functionAppName.value')" >> "$GITHUB_OUTPUT"
+          echo "function_app_default_hostname=$(echo "$deployment_json" | jq -r '.functionAppDefaultHostname.value')" >> "$GITHUB_OUTPUT"
           echo "app_insights_connection_string=$(echo "$deployment_json" | jq -r '.appInsightsConnectionString.value')" >> "$GITHUB_OUTPUT"
 
       - name: Get Static Web App deployment token
@@ -69,7 +70,7 @@ jobs:
             10.0.x
 
       - name: Run Tests
-        run: dotnet test --configuration Release
+        run: dotnet test --configuration Release --filter "Category!=Integration"
 
       - name: Build and Publish Client (Blazor WebAssembly)
         env:
@@ -88,6 +89,40 @@ jobs:
         with:
           app-name: ${{ steps.deploy_infrastructure.outputs.function_app_name }}
           package: bin/api-publish
+
+      - name: Run Integration Tests (deployed API)
+        env:
+          FUNCTION_APP_NAME: ${{ steps.deploy_infrastructure.outputs.function_app_name }}
+          FUNCTION_APP_HOSTNAME: ${{ steps.deploy_infrastructure.outputs.function_app_default_hostname }}
+          AZURE_DEVOPS_ORGANIZATION: ${{ vars.AZURE_DEVOPS_ORGANIZATION }}
+          AZURE_DEVOPS_PROJECT: ${{ vars.AZURE_DEVOPS_PROJECT }}
+          AZURE_DEVOPS_PROJECT_ID: ${{ vars.AZURE_DEVOPS_PROJECT_ID }}
+          AZURE_DEVOPS_REPOSITORY_ID: ${{ vars.AZURE_DEVOPS_REPOSITORY_ID }}
+          AZURE_DEVOPS_BUILD_ID: ${{ vars.AZURE_DEVOPS_BUILD_ID }}
+        run: |
+          function_key=$(az functionapp keys list \
+            --name "$FUNCTION_APP_NAME" \
+            --resource-group rg-azure-devops-release-notes \
+            --query 'functionKeys.default' \
+            --output tsv)
+          echo "::add-mask::$function_key"
+          export FUNCTION_KEY="$function_key"
+          export RELEASE_NOTES_API_URL="https://$FUNCTION_APP_HOSTNAME/api"
+
+          # GET releases also creates the Cosmos container, which health only reads.
+          for attempt in $(seq 1 20); do
+            if curl --silent --fail --max-time 30 "$RELEASE_NOTES_API_URL/releases?project=warmup" > /dev/null; then
+              echo "API ready after $attempt attempt(s)."
+              break
+            fi
+            if [ "$attempt" -eq 20 ]; then
+              echo "::warning::API did not become ready; running integration tests for diagnostics."
+            else
+              sleep 15
+            fi
+          done
+
+          dotnet test tests/Api.IntegrationTests --configuration Release --filter "Category=Integration"
 
       - name: Deploy Client (Azure Static Web Apps)
         id: builddeploy
