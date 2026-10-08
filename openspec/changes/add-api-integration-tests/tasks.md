@@ -5,7 +5,7 @@
 - [x] 1.1 Add `!.env.example.ps1` after `.env*` in `.gitignore`. Verify with `git check-ignore -v .env .env.ps1 .env.example.ps1`: the first two are ignored and the example is not.
 - [x] 1.2 Create `.env.example.ps1` with placeholder `$env:` assignments and one-line comments for these keys: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_LOCATION`, `AZURE_RESOURCE_SUFFIX`, the five `AZURE_DEVOPS_*` keys, `RELEASE_NOTES_API_URL`, and `FUNCTION_KEY`. Verify that `pwsh -c ". ./.env.example.ps1"` runs without errors and that no real values appear.
 - [x] 1.3 Implement `scripts/Sync-Environment.ps1` (parameters `-EnvFile`, `-SkipGitHub`, `-Repo`). It parses `.env` and writes `.env.ps1` with single-quote escaping. Verify with a temporary `.env` containing `'`, `$`, `=`, comments, and blank lines: dot-sourcing the generated file yields exact values.
-- [ ] 1.4 Add the GitHub sync to `scripts/Sync-Environment.ps1`:
+- [x] 1.4 Add the GitHub sync to `scripts/Sync-Environment.ps1`:
   - a `gh auth status` precheck;
   - skip the local-only keys;
   - send secret-pattern keys through `gh secret set --body -` on stdin;
@@ -68,8 +68,8 @@
 
 ## 5. End-to-end verification
 
-- [ ] 5.1 Run `scripts/Sync-Environment.ps1` to push the variables, then trigger the workflow with `workflow_dispatch`. Verify that the pre-deploy tests exclude integration tests, that the integration step passes against the deployed Function App, and that no function key or secret appears unmasked in the logs.
-- [ ] 5.2 Re-run `scripts/Initialize-AzureDevOpsTestProject.ps1` and `scripts/Sync-Environment.ps1` once more. Verify that both are no-ops (no new ADO resources, no build queued, no `.env` diff) and that `openspec validate add-api-integration-tests --strict` passes.
+- [x] 5.1 Run `scripts/Sync-Environment.ps1` to push the variables, then trigger the workflow with `workflow_dispatch`. Verify that the pre-deploy tests exclude integration tests, that the integration step passes against the deployed Function App, and that no function key or secret appears unmasked in the logs.
+- [x] 5.2 Re-run `scripts/Initialize-AzureDevOpsTestProject.ps1` and `scripts/Sync-Environment.ps1` once more. Verify that both are no-ops (no new ADO resources, no build queued, no `.env` diff) and that `openspec validate add-api-integration-tests --strict` passes.
 
 ## Workflow follow-up
 
