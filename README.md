@@ -1,5 +1,8 @@
-# AzureDevOpsReleaseNotes
-Azure DevOps release notes tooling with .NET and Node.js development environments.
+# Azure DevOps Release Notes
+
+Compiles related commits and Work Items of Azure DevOps builds triggered by the build run itself through an API exposed by an Azure Function, stores it in Cosmos DB and displays it in a Blazor Static Web App.
+
+## Table of Contents
 
 - [Local Emulators](docs/local-emulators.md)
 	- [Run the app](docs/run-the-app.md)
