@@ -140,6 +140,15 @@ jobs:
           skip_api_build: true
           ###### End of Repository/Build Configurations ######
 
+      - name: Install Playwright Chromium
+        run: pwsh tests/Client.BrowserTests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+
+      - name: Run Browser Tests (deployed client)
+        env:
+          CLIENT_API_MODE: live
+          CLIENT_BASE_URL: https://${{ steps.deploy_infrastructure.outputs.static_web_app_hostname }}
+        run: dotnet test tests/Client.BrowserTests --configuration Release --filter "Category=Integration"
+
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
