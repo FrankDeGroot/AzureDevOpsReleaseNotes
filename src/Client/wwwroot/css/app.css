@@ -1,6 +1,30 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
 
-:root { --paper: #f3f0e8; --ink: #1e211c; --muted: #77786e; --line: #d8d4c8; --accent: #e04d32; --acid: #d9e86c; }
+:root {
+    color-scheme: light;
+    --paper: #f3f0e8;
+    --ink: #1e211c;
+    --muted: #77786e;
+    --line: #d8d4c8;
+    --accent: #e04d32;
+    --acid: #d9e86c;
+    --hover: var(--acid);
+    --sidebar-background: var(--ink);
+    --sidebar-foreground: var(--paper);
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        color-scheme: dark;
+        --paper: #171916;
+        --ink: #f3f0e8;
+        --muted: #a3a69b;
+        --line: #3a3d35;
+        --accent: #ff8068;
+        --hover: #3b4321;
+        --sidebar-background: #242720;
+        --sidebar-foreground: #f3f0e8;
+    }
+}
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--paper); color: var(--ink); font-family: Manrope, sans-serif; }
 a { color: inherit; text-decoration: none; }
@@ -21,7 +45,7 @@ h1 em { color: var(--accent); font-style: normal; }
 .list-header, .release-row { display: grid; grid-template-columns: 1.2fr 1.4fr 1fr 2fr 2rem; gap: 1rem; align-items: center; }
 .list-header { padding: 0 1.25rem 1rem; text-transform: uppercase; letter-spacing: .1em; }
 .release-row { border-top: 1px solid var(--line); padding: 1.4rem 1.25rem; transition: background .2s, padding .2s; }
-.release-row:hover { background: var(--acid); padding-left: 1.75rem; }
+.release-row:hover { background: var(--hover); padding-left: 1.75rem; }
 .build-number { font-weight: 800; }
 .counts b { color: var(--ink); font-weight: 500; }
 .row-arrow { color: var(--accent); font-size: 1.5rem; }
@@ -59,9 +83,10 @@ small { display: block; margin-top: .4rem; }
 }
 
 #blazor-error-ui {
-    background: lightyellow;
+    background: var(--paper);
     bottom: 0;
     box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    color: var(--ink);
     display: none;
     left: 0;
     padding: 0.6rem 1.25rem 0.7rem 1.25rem;

@@ -5,7 +5,7 @@
 
 .nav-item ::deep .nav-link:hover { color: var(--acid); }
 .nav-note { margin: 18rem 1rem 0; color: #888a7c; font: .65rem/1.6 'DM Mono', monospace; letter-spacing: .08em; }
-.nav-note strong { color: var(--paper); font-weight: 400; }
+.nav-note strong { color: var(--sidebar-foreground); font-weight: 400; }
 .navbar-toggler {
     background-color: rgba(255, 255, 255, 0.1);
 }

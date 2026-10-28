@@ -18,6 +18,14 @@
       });
     </script>
     <link rel="preload" id="webassembly" />
+    <script>
+        const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
+        const updateTheme = () => {
+            document.documentElement.setAttribute("data-bs-theme", colorScheme.matches ? "dark" : "light");
+        };
+        updateTheme();
+        colorScheme.addEventListener("change", updateTheme);
+    </script>
     <link rel="stylesheet" href="lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="css/app.css" />
     <link rel="icon" type="image/png" href="favicon.png" />

@@ -130,4 +130,21 @@ public sealed class ReleaseBrowserWorkflowTests : IAsyncLifetime
             Assert.All(apiUrls, url => Assert.Equal(settings.BaseUrl.Authority, new Uri(url).Authority));
         }
     }
+
+    [Fact]
+    public async Task Theme_FollowsSystemColorPreferenceAndUpdatesWhenItChanges()
+    {
+        await page!.EmulateMediaAsync(new() { ColorScheme = ColorScheme.Light });
+        var response = await page.GotoAsync(settings.BaseUrl.ToString());
+        Assert.NotNull(response);
+        Assert.True(response.Ok, $"Client returned HTTP {(int)response.Status}.");
+
+        Assert.Equal("light", await page.EvaluateAsync<string>("document.documentElement.dataset.bsTheme"));
+        Assert.Equal("#f3f0e8", await page.EvaluateAsync<string>("getComputedStyle(document.documentElement).getPropertyValue('--paper').trim()"));
+
+        await page.EmulateMediaAsync(new() { ColorScheme = ColorScheme.Dark });
+        await page.WaitForFunctionAsync("document.documentElement.dataset.bsTheme === 'dark'");
+
+        Assert.Equal("#171916", await page.EvaluateAsync<string>("getComputedStyle(document.documentElement).getPropertyValue('--paper').trim()"));
+    }
 }
