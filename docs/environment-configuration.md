@@ -11,3 +11,9 @@ Keep all settings in a `.env` file (`KEY=value` per line) at the repository root
 [scripts/Sync-Environment.ps1](../scripts/Sync-Environment.ps1) requires `gh auth login`. It sets keys whose names contain `SECRET`, `TOKEN`, `PASSWORD`, or `KEY` as repository secrets and all other keys as repository variables. It skips empty keys and the local-only keys `RELEASE_NOTES_API_URL` and `FUNCTION_KEY`. Use `-Repo owner/name` to target a different repository.
 
 If your `.env` uses the older keys, rename `TENANT_ID` and `CLIENT_ID` to `AZURE_TENANT_ID` and `AZURE_CLIENT_ID`, and remove `CLIENT_SECRET`, `BUILD_ID`, and `REPOSITORY_ID`. The Azure DevOps setup script writes the replacement `AZURE_DEVOPS_*` keys. `RELEASE_NOTES_API_URL` is now the API base URL (for example `http://localhost:7071/api`), not the compile endpoint.
+
+## Release-note storage
+
+The deployed Function App receives `Storage__TableEndpoint` and `Storage__TableName` from Bicep. Its system-assigned identity accesses the existing StorageV2 account through the Storage Table Data Contributor role; do not add a storage account key to `.env` or GitHub Actions settings. Local Table Storage connection settings belong in the API's local-only settings and are documented in [Local emulators](local-emulators.md).
+
+The `releases` table starts empty after cutover. Existing Cosmos records are not copied and remain in the existing Cosmos account. Rolling back to the Cosmos-backed app restores access to old records, but not to releases written to Table Storage after cutover.

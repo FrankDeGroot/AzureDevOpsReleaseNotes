@@ -16,9 +16,9 @@ builder.Services.AddSingleton<TokenCredential>(_ => builder.Environment.IsDevelo
     : new ManagedIdentityCredential());
 builder.Services.AddHttpClient<AzureDevOpsClient>();
 builder.Services.AddHttpClient<IExternalConnectionHealthCheck, AzureDevOpsHealthCheck>();
-builder.Services.AddSingleton<CosmosReleaseNoteStore>();
-builder.Services.AddSingleton<IReleaseNoteStore>(services => services.GetRequiredService<CosmosReleaseNoteStore>());
-builder.Services.AddSingleton<IExternalConnectionHealthCheck>(services => services.GetRequiredService<CosmosReleaseNoteStore>());
+builder.Services.AddSingleton<TableReleaseNoteStore>();
+builder.Services.AddSingleton<IReleaseNoteStore>(services => services.GetRequiredService<TableReleaseNoteStore>());
+builder.Services.AddSingleton<IExternalConnectionHealthCheck>(services => services.GetRequiredService<TableReleaseNoteStore>());
 builder.Services.AddSingleton<ExternalConnectionHealthService>();
 builder.Services.AddSingleton<ReleaseNoteCompiler>();
 

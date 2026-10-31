@@ -10,41 +10,12 @@ param resourceNameSuffix string
 param dotnetVersion string = '10.0'
 
 var staticWebAppName = 'swa-release-notes-${resourceNameSuffix}'
-var cosmosAccountName = 'cosmosreleasenotes${resourceNameSuffix}'
 var storageAccountName = take('stfn${replace(toLower(resourceNameSuffix), '-', '')}', 24)
 var hostingPlanName = 'asp-release-notes-${resourceNameSuffix}'
 var functionAppName = 'func-release-notes-${resourceNameSuffix}'
 var logAnalyticsWorkspaceName = 'log-release-notes-${resourceNameSuffix}'
 var appInsightsName = 'appi-release-notes-${resourceNameSuffix}'
 var deploymentContainerName = 'app-package'
-
-resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-08-15' = {
-  name: cosmosAccountName
-  location: location
-  kind: 'GlobalDocumentDB'
-  properties: {
-    databaseAccountOfferType: 'Standard'
-    locations: [
-      {
-        locationName: location
-        failoverPriority: 0
-        isZoneRedundant: false
-      }
-    ]
-    consistencyPolicy: {
-      defaultConsistencyLevel: 'Session'
-    }
-    capabilities: [
-      {
-        name: 'EnableServerless'
-      }
-    ]
-    enableAutomaticFailover: false
-    enableFreeTier: true
-    enableMultipleWriteLocations: false
-    publicNetworkAccess: 'Enabled'
-  }
-}
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageAccountName
@@ -63,6 +34,16 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
       defaultAction: 'Allow'
     }
   }
+}
+
+resource tableService 'Microsoft.Storage/storageAccounts/tableServices@2026-06-01' existing = {
+  parent: storageAccount
+  name: 'default'
+}
+
+resource releaseNotesTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2026-06-01' = {
+  parent: tableService
+  name: 'releases'
 }
 
 resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
@@ -157,16 +138,12 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           value: storageAccount.properties.primaryEndpoints.table
         }
         {
-          name: 'Cosmos__ConnectionString'
-          value: cosmosAccount.listConnectionStrings().connectionStrings[0].connectionString
+          name: 'Storage__TableEndpoint'
+          value: storageAccount.properties.primaryEndpoints.table
         }
         {
-          name: 'Cosmos__Database'
-          value: 'release-notes'
-        }
-        {
-          name: 'Cosmos__Container'
-          value: 'releases'
+          name: 'Storage__TableName'
+          value: releaseNotesTable.name
         }
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'

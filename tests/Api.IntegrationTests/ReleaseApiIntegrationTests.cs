@@ -22,19 +22,26 @@ public sealed class ReleaseApiIntegrationTests(CompiledReleaseFixture fixture) :
     }
 
     [Fact]
-    public async Task GetById_ReadsStoredReleaseFromCosmosDb()
+    public async Task GetById_ReadsStoredReleaseWithAndWithoutProjectId()
     {
         Assert.Equal(HttpStatusCode.OK, fixture.CompileStatus);
 
-        var document = await fixture.Client.GetFromJsonAsync<ReleaseNoteDocument>(
+        var documentWithProjectId = await fixture.Client.GetFromJsonAsync<ReleaseNoteDocument>(
             $"releases/{Uri.EscapeDataString(fixture.ExpectedId)}?projectId={Uri.EscapeDataString(fixture.Settings.ProjectId)}",
             CompiledReleaseFixture.JsonOptions);
+        var documentWithoutProjectId = await fixture.Client.GetFromJsonAsync<ReleaseNoteDocument>(
+            $"releases/{Uri.EscapeDataString(fixture.ExpectedId)}",
+            CompiledReleaseFixture.JsonOptions);
 
-        Assert.NotNull(document);
-        Assert.Equal(fixture.ExpectedId, document.Id);
-        Assert.Equal(fixture.Settings.BuildId, document.BuildId);
-        Assert.NotEmpty(document.Commits);
-        Assert.NotEmpty(document.WorkItems);
+        Assert.NotNull(documentWithProjectId);
+        Assert.NotNull(documentWithoutProjectId);
+        Assert.Equal(fixture.ExpectedId, documentWithProjectId.Id);
+        Assert.Equal(fixture.Settings.BuildId, documentWithProjectId.BuildId);
+        Assert.Equal(
+            JsonSerializer.Serialize(documentWithProjectId, CompiledReleaseFixture.JsonOptions),
+            JsonSerializer.Serialize(documentWithoutProjectId, CompiledReleaseFixture.JsonOptions));
+        Assert.NotEmpty(documentWithProjectId.Commits);
+        Assert.NotEmpty(documentWithProjectId.WorkItems);
     }
 
     [Fact]
@@ -53,7 +60,7 @@ public sealed class ReleaseApiIntegrationTests(CompiledReleaseFixture fixture) :
     }
 
     [Fact]
-    public async Task Health_ReportsCosmosDbAndAzureDevOpsHealthy()
+    public async Task Health_ReportsTableStorageAndAzureDevOpsHealthy()
     {
         Assert.Equal(HttpStatusCode.OK, fixture.CompileStatus);
 
@@ -64,7 +71,7 @@ public sealed class ReleaseApiIntegrationTests(CompiledReleaseFixture fixture) :
         var health = JsonSerializer.Deserialize<HealthResult>(body, CompiledReleaseFixture.JsonOptions)!;
         Assert.Equal("healthy", health.Status);
         var connections = health.Connections.ToDictionary(connection => connection.Name, connection => connection.Status);
-        Assert.Equal("healthy", connections["cosmosDb"]);
+        Assert.Equal("healthy", connections["tableStorage"]);
         Assert.Equal("healthy", connections["azureDevOps"]);
     }
 

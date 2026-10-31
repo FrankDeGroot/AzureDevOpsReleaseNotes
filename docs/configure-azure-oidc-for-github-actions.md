@@ -8,7 +8,7 @@ In **Settings > Secrets and variables > Actions > Variables**, configure these r
 - `AZURE_TENANT_ID`: Microsoft Entra tenant ID.
 - `AZURE_SUBSCRIPTION_ID`: Subscription that will contain the deployment.
 - `AZURE_LOCATION`: Azure region for the deployment.
-- `AZURE_RESOURCE_SUFFIX`: A globally unique, 3-24 character lowercase alphanumeric suffix, such as `contoso123`. It is used in the Static Web App and Cosmos DB account names.
+- `AZURE_RESOURCE_SUFFIX`: A globally unique, 3-24 character lowercase alphanumeric suffix, such as `contoso123`. It is used in the Static Web App, Function App, and Storage account names.
 - `AZURE_DEVOPS_ORGANIZATION`, `AZURE_DEVOPS_PROJECT`, `AZURE_DEVOPS_PROJECT_ID`, `AZURE_DEVOPS_REPOSITORY_ID`, `AZURE_DEVOPS_BUILD_ID`: The Azure DevOps test build that the post-deploy integration tests compile. [Set up the Azure DevOps test project](set-up-the-azure-devops-test-project.md) writes these keys to `.env`.
 
 Rather than entering these variables by hand, put them in `.env` and run `./scripts/Sync-Environment.ps1` (see [Environment configuration](environment-configuration.md)).

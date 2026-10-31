@@ -12,7 +12,7 @@ public sealed class ExternalConnectionHealthTests
         var checks = new IExternalConnectionHealthCheck[]
         {
             new StubHealthCheck("azureDevOps", "Reachable."),
-            new StubHealthCheck("cosmosDb", "Database and container reachable.")
+            new StubHealthCheck("tableStorage", "Storage table reachable.")
         };
         var service = new ExternalConnectionHealthService(checks, NullLogger<ExternalConnectionHealthService>.Instance);
 
@@ -27,7 +27,7 @@ public sealed class ExternalConnectionHealthTests
     public async Task CheckAsync_reports_sanitized_connection_failure()
     {
         var service = new ExternalConnectionHealthService(
-            [new StubHealthCheck("cosmosDb", new InvalidOperationException("secret connection detail"))],
+            [new StubHealthCheck("tableStorage", new InvalidOperationException("secret connection detail"))],
             NullLogger<ExternalConnectionHealthService>.Instance);
 
         var result = await service.CheckAsync(CancellationToken.None);
