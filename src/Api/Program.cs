@@ -1,17 +1,23 @@
 using Azure.Core;
 using Azure.Identity;
+using Api;
 using Api.Services;
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Builder;
-using Microsoft.Extensions.DependencyInjection;
+using Api.Authentication;
+using Microsoft.AspNetCore.Authentication;
 
-var builder = FunctionsApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddAuthentication(EasyAuthHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, EasyAuthHandler>(EasyAuthHandler.SchemeName, _ => { });
+builder.Services.AddAuthorization(options => options.AddPolicy("Compile", policy =>
+    policy.RequireAssertion(context => EasyAuthHandler.IsLocalDevelopment(builder.Environment, builder.Configuration) ||
+        context.User.Identity?.IsAuthenticated == true)));
 
-builder.Services
-    .AddApplicationInsightsTelemetryWorkerService()
-    .ConfigureFunctionsApplicationInsights();
+if (!string.IsNullOrWhiteSpace(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+{
+    builder.Services.AddApplicationInsightsTelemetry();
+}
 
-builder.Services.AddSingleton<TokenCredential>(_ => builder.Environment.IsDevelopment()
+builder.Services.AddSingleton<TokenCredential>(_ => EasyAuthHandler.IsLocalDevelopment(builder.Environment, builder.Configuration)
     ? new DefaultAzureCredential()
     : new ManagedIdentityCredential());
 builder.Services.AddHttpClient<AzureDevOpsClient>();
@@ -22,4 +28,15 @@ builder.Services.AddSingleton<IExternalConnectionHealthCheck>(services => servic
 builder.Services.AddSingleton<ExternalConnectionHealthService>();
 builder.Services.AddSingleton<ReleaseNoteCompiler>();
 
-builder.Build().Run();
+var app = builder.Build();
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapReleaseEndpoints();
+app.MapHealthEndpoints();
+app.Map("/api/{**path}", () => TypedResults.NotFound());
+app.MapFallbackToFile("index.html");
+app.Run();
+
+public partial class Program;

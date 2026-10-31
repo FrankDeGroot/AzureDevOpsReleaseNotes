@@ -2,7 +2,7 @@ namespace Api.IntegrationTests;
 
 public sealed record IntegrationSettings(
     Uri ApiBaseUrl,
-    string? FunctionKey,
+    string? ApiToken,
     string Organization,
     string Project,
     string ProjectId,
@@ -11,12 +11,14 @@ public sealed record IntegrationSettings(
 {
     public const string DefaultApiBaseUrl = "http://localhost:7071/api";
 
-    public static IntegrationSettings FromEnvironment()
+    public static IntegrationSettings FromEnvironment() => Parse(Environment.GetEnvironmentVariable);
+
+    public static IntegrationSettings Parse(Func<string, string?> getSetting)
     {
         var missing = new List<string>();
         string Required(string name)
         {
-            var value = Environment.GetEnvironmentVariable(name);
+            var value = getSetting(name);
             if (string.IsNullOrWhiteSpace(value))
             {
                 missing.Add(name);
@@ -42,13 +44,19 @@ public sealed record IntegrationSettings(
             throw new InvalidOperationException("AZURE_DEVOPS_BUILD_ID must be a positive integer.");
         }
 
-        var baseUrl = Environment.GetEnvironmentVariable("RELEASE_NOTES_API_URL");
+        var baseUrl = getSetting("RELEASE_NOTES_API_URL");
         baseUrl = string.IsNullOrWhiteSpace(baseUrl) ? DefaultApiBaseUrl : baseUrl;
-        var functionKey = Environment.GetEnvironmentVariable("FUNCTION_KEY");
+        if (!Uri.TryCreate(baseUrl.TrimEnd('/') + "/", UriKind.Absolute, out var apiUri) ||
+            (apiUri.Scheme != Uri.UriSchemeHttp && apiUri.Scheme != Uri.UriSchemeHttps) ||
+            !string.IsNullOrEmpty(apiUri.Query) || !string.IsNullOrEmpty(apiUri.UserInfo) || !string.IsNullOrEmpty(apiUri.Fragment))
+        {
+            throw new InvalidOperationException("RELEASE_NOTES_API_URL must be an HTTP(S) URL without credentials, query, or fragment.");
+        }
+        var apiToken = getSetting("RELEASE_NOTES_API_TOKEN");
 
         return new IntegrationSettings(
-            new Uri(baseUrl.TrimEnd('/') + "/"),
-            string.IsNullOrWhiteSpace(functionKey) ? null : functionKey,
+            apiUri,
+            string.IsNullOrWhiteSpace(apiToken) ? null : apiToken,
             organization,
             project,
             projectId,
@@ -58,25 +66,17 @@ public sealed record IntegrationSettings(
 
     public HttpClient CreateClient()
     {
-        HttpMessageHandler handler = new HttpClientHandler();
-        if (FunctionKey is not null)
+        var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
         {
-            handler = new FunctionKeyHandler(FunctionKey) { InnerHandler = handler };
+            BaseAddress = ApiBaseUrl, Timeout = TimeSpan.FromSeconds(100)
+        };
+        if (ApiToken is not null)
+        {
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", ApiToken);
         }
 
-        return new HttpClient(handler) { BaseAddress = ApiBaseUrl, Timeout = TimeSpan.FromSeconds(100) };
+        return client;
     }
 
-    // The Static Web App proxy drops the x-functions-key header but forwards the code query parameter.
-    private sealed class FunctionKeyHandler(string functionKey) : DelegatingHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            var uri = new UriBuilder(request.RequestUri!);
-            var code = $"code={Uri.EscapeDataString(functionKey)}";
-            uri.Query = string.IsNullOrEmpty(uri.Query) ? code : $"{uri.Query.TrimStart('?')}&{code}";
-            request.RequestUri = uri.Uri;
-            return base.SendAsync(request, cancellationToken);
-        }
-    }
+    public override string ToString() => $"IntegrationSettings {{ ApiBaseUrl = {ApiBaseUrl}, BuildId = {BuildId} }}";
 }

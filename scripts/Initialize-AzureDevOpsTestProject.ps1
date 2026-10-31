@@ -6,7 +6,7 @@
 .DESCRIPTION
     Creates or reuses the project, its default Git repository, a tagged seed work item, a seed commit
     linked to that work item, an agentless YAML pipeline, and a succeeded build whose changes and work
-    items are non-empty. Optionally grants the deployed Function App's managed identity read access.
+    items are non-empty. Optionally grants the deployed web app's managed identity read access.
     Writes the resulting AZURE_DEVOPS_* keys to .env. Authenticates with the current Azure CLI sign-in.
 .EXAMPLE
     ./scripts/Initialize-AzureDevOpsTestProject.ps1 -Organization my-org
@@ -15,7 +15,8 @@
 param(
     [string]$Organization = $env:AZURE_DEVOPS_ORGANIZATION,
     [string]$Project = ($env:AZURE_DEVOPS_PROJECT ? $env:AZURE_DEVOPS_PROJECT : 'ReleaseNotesIntegration'),
-    [string]$FunctionAppName = ($env:AZURE_RESOURCE_SUFFIX ? "func-release-notes-$($env:AZURE_RESOURCE_SUFFIX)" : ''),
+    [Alias('FunctionAppName')]
+    [string]$WebAppName = ($env:AZURE_RESOURCE_SUFFIX ? "app-release-notes-$($env:AZURE_RESOURCE_SUFFIX)" : ''),
     [string]$EnvFile = (Join-Path $PSScriptRoot '..' '.env')
 )
 
@@ -250,14 +251,14 @@ function Get-OrCreateBuild($ProjectInfo, $Repository, $Pipeline, [int]$WorkItemI
     throw 'Could not produce a succeeded build with associated commits and work items.'
 }
 
-function Grant-FunctionAppAccess($ProjectInfo) {
-    if (-not $FunctionAppName) {
-        Write-Warning 'No Function App name (pass -FunctionAppName or set AZURE_RESOURCE_SUFFIX); skipping managed identity access.'
+function Grant-WebAppAccess($ProjectInfo) {
+    if (-not $WebAppName) {
+        Write-Warning 'No web app name (pass -WebAppName or set AZURE_RESOURCE_SUFFIX); skipping managed identity access.'
         return
     }
-    $principalId = az resource list --name $FunctionAppName --resource-type Microsoft.Web/sites --query '[0].identity.principalId' --output tsv 2>$null
+    $principalId = az resource list --name $WebAppName --resource-type Microsoft.Web/sites --query '[0].identity.principalId' --output tsv 2>$null
     if ($LASTEXITCODE -ne 0 -or -not $principalId) {
-        Write-Warning "Function App '$FunctionAppName' or its managed identity was not found in the current subscription; skipping managed identity access."
+        Write-Warning "Web app '$WebAppName' or its managed identity was not found in the current subscription; skipping managed identity access."
         return
     }
 
@@ -272,9 +273,9 @@ function Grant-FunctionAppAccess($ProjectInfo) {
             servicePrincipal = @{ origin = 'aad'; originId = $principalId; subjectKind = 'servicePrincipal' }
         }
         if ($result.PSObject.Properties['isSuccess'] -and -not $result.isSuccess) {
-            throw "Failed to grant Basic access to '$FunctionAppName': $($result | ConvertTo-Json -Depth 6 -Compress)"
+            throw "Failed to grant Basic access to '$WebAppName': $($result | ConvertTo-Json -Depth 6 -Compress)"
         }
-        Write-Host "Granted Basic access to the '$FunctionAppName' managed identity."
+        Write-Host "Granted Basic access to the '$WebAppName' managed identity."
     }
 
     $scope = (Invoke-Ado -Uri "$vsspsUrl/_apis/graph/descriptors/$($ProjectInfo.id)?$previewApiVersion").value
@@ -283,10 +284,10 @@ function Grant-FunctionAppAccess($ProjectInfo) {
     $membershipUrl = "$vsspsUrl/_apis/graph/memberships/$($servicePrincipal.descriptor)/$($readers.descriptor)?$previewApiVersion"
     if (-not (Invoke-Ado -Uri $membershipUrl -AllowNotFound)) {
         Invoke-Ado -Method PUT -Uri $membershipUrl | Out-Null
-        Write-Host "Added the '$FunctionAppName' managed identity to $Project Readers."
+        Write-Host "Added the '$WebAppName' managed identity to $Project Readers."
     }
     else {
-        Write-Host "The '$FunctionAppName' managed identity already has access to $Project."
+        Write-Host "The '$WebAppName' managed identity already has access to $Project."
     }
 }
 
@@ -312,7 +313,7 @@ $workItemId = Get-OrCreateSeedWorkItem
 Initialize-Repository $projectInfo $repository $workItemId
 $pipeline = Get-OrCreatePipeline $repository
 $buildId = Get-OrCreateBuild $projectInfo $repository $pipeline $workItemId
-Grant-FunctionAppAccess $projectInfo
+Grant-WebAppAccess $projectInfo
 
 Set-EnvValues $EnvFile ([ordered]@{
         AZURE_DEVOPS_ORGANIZATION  = $Organization

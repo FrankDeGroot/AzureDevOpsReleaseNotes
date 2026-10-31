@@ -8,6 +8,24 @@ param resourceNameSuffix string
 @description('Azure region for the release-notes workload.')
 param location string
 
+@description('Microsoft Entra tenant for the API.')
+@minLength(36)
+@maxLength(36)
+param authTenantId string
+
+@description('Client ID of the API application registration.')
+@minLength(36)
+@maxLength(36)
+param authClientId string
+
+@description('Audience accepted by the API Easy Auth provider.')
+@minLength(1)
+param authAudience string
+
+@description('Dedicated Linux App Service plan SKU.')
+@allowed(['B1', 'B2', 'B3', 'S1', 'S2', 'S3'])
+param appServicePlanSku string = 'B1'
+
 var resourceGroupName = 'rg-azure-devops-release-notes'
 
 resource workloadResourceGroup 'Microsoft.Resources/resourceGroups@2024-03-01' = {
@@ -20,13 +38,15 @@ module workload 'workload.bicep' = {
   params: {
     location: location
     resourceNameSuffix: resourceNameSuffix
+    authTenantId: authTenantId
+    authClientId: authClientId
+    authAudience: authAudience
+    appServicePlanSku: appServicePlanSku
   }
 }
 
 output resourceGroupName string = workloadResourceGroup.name
-output staticWebAppName string = workload.outputs.staticWebAppName
-output staticWebAppDefaultHostname string = workload.outputs.staticWebAppDefaultHostname
-output functionAppName string = workload.outputs.functionAppName
-output functionAppDefaultHostname string = workload.outputs.functionAppDefaultHostname
+output webAppName string = workload.outputs.webAppName
+output webAppDefaultHostname string = workload.outputs.webAppDefaultHostname
 output appInsightsName string = workload.outputs.appInsightsName
 output appInsightsConnectionString string = workload.outputs.appInsightsConnectionString

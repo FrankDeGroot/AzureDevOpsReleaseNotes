@@ -132,6 +132,21 @@ public sealed class ReleaseBrowserWorkflowTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Release_details_can_be_refreshed_directly()
+    {
+        await page!.GotoAsync(settings.BaseUrl.ToString());
+        await page.Locator(".release-row").First.ClickAsync();
+        var heading = page.Locator(".detail-heading h1");
+        await heading.WaitForAsync();
+        var expected = await heading.InnerTextAsync();
+        var response = await page.ReloadAsync();
+        Assert.NotNull(response);
+        Assert.True(response.Ok);
+        await heading.WaitForAsync();
+        Assert.Equal(expected, await heading.InnerTextAsync());
+    }
+
+    [Fact]
     public async Task Theme_FollowsSystemColorPreferenceAndUpdatesWhenItChanges()
     {
         await page!.EmulateMediaAsync(new() { ColorScheme = ColorScheme.Light });

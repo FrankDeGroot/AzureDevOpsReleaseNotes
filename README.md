@@ -1,6 +1,6 @@
 # Azure DevOps Release Notes
 
-Compiles related commits and Work Items of Azure DevOps builds triggered by the build run itself through an API exposed by an Azure Function, stores it in Cosmos DB and displays it in a Blazor Static Web App.
+Compiles commits and work items for Azure DevOps builds, stores release notes in Cosmos DB, and displays them in Blazor WebAssembly. One ASP.NET Core application on Azure App Service serves both the viewer and `/api` endpoints. Compilation uses Microsoft Entra Easy Auth in Azure; the viewer and read APIs remain public.
 
 ## Table of Contents
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'printf "Cosmos readiness or certificate trust failed. Check the cosmosdb service, then rerun: bash .devcontainer/trust-cosmos-certificate.sh\n" >&2' ERR
 
 curl --fail --silent --show-error --retry 60 --retry-delay 2 --retry-all-errors \
   --max-time 5 --retry-max-time 180 http://localhost:8080/ready > /dev/null

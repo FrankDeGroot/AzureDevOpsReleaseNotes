@@ -40,7 +40,7 @@ Alternative: keep the Functions runtime and add static-file serving. Rejected be
 
 ### 2. Use the standard hosted-Blazor publish model
 
-Reference the client from the server with no reference to its compiled application assembly and use the matching .NET 10 Blazor WebAssembly server hosting package/static-web-assets integration. One `dotnet publish src/Api/Api.csproj -c Release` must include the complete client runtime and assets; do not rely on an untracked copy command or a separately deployed client output.
+Use the standard server-to-client project reference and matching stable .NET 10 Blazor WebAssembly hosting packages/static-web-assets integration. Keep the client's static asset mode suitable for referenced hosting. Do not set `ReferenceOutputAssembly=false`: implementation checks showed it drops transitive library static assets, including the Application Insights initializer, from the server manifest. The client remains WebAssembly; the project reference does not introduce server-side UI rendering. One `dotnet publish src/Api/Api.csproj -c Release` must include the complete client runtime and assets; do not rely on an untracked copy command or a separately deployed client output.
 
 Serve framework files and static assets before the client-route fallback. Reserve `/api` from that fallback so unknown API routes and operation failures remain API responses. Restrict client fallback to navigational paths so missing scripts, configuration, and runtime assets remain 404. Remove the SWA-specific routing file when server routing replaces it. The client keeps its existing same-origin base address.
 

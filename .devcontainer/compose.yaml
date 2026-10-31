@@ -7,19 +7,11 @@ services:
       - ..:/workspaces/AzureDevOpsReleaseNotes:cached
     network_mode: service:cosmosdb
     depends_on:
-      - azurite
+      - cosmosdb
     environment:
-      AzureWebJobsStorage: UseDevelopmentStorage=true
       Cosmos__ConnectionString: AccountEndpoint=https://localhost:8081/;AccountKey=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==;
       Cosmos__Database: release-notes
       Cosmos__Container: releases
-
-  azurite:
-    image: mcr.microsoft.com/azure-storage/azurite:latest
-    network_mode: service:cosmosdb
-    command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --location /data
-    volumes:
-      - azurite-data:/data
 
   cosmosdb:
     image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-latest
@@ -33,5 +25,4 @@ services:
       - ./cosmos-emulator.key:/emulator.key:ro
 
 volumes:
-  azurite-data:
   cosmos-data:

@@ -1,0 +1,21 @@
+@baseUrl = http://localhost:7071
+
+### List releases
+GET {{baseUrl}}/api/releases?project=release-notes
+
+### Missing release
+GET {{baseUrl}}/api/releases/missing?projectId=release-notes
+
+### Dependency health
+GET {{baseUrl}}/api/health
+
+### Compile locally in Development; hosted callers supply their Entra bearer token
+POST {{baseUrl}}/api/releases/compile
+Content-Type: application/json
+
+{
+  "organization": "contoso",
+  "project": "release-notes",
+  "repositoryId": "repository-id",
+  "buildId": 42
+}

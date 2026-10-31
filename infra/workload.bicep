@@ -6,17 +6,32 @@ param location string
 @maxLength(24)
 param resourceNameSuffix string
 
-@description('The .NET version for the isolated worker function app.')
+@description('The .NET runtime version for the Linux web app.')
 param dotnetVersion string = '10.0'
 
-var staticWebAppName = 'swa-release-notes-${resourceNameSuffix}'
+@description('Microsoft Entra tenant hosting the API registration.')
+@minLength(36)
+@maxLength(36)
+param authTenantId string
+
+@description('Application client ID of the API registration, not the deployment identity.')
+@minLength(36)
+@maxLength(36)
+param authClientId string
+
+@description('API audience accepted by Easy Auth.')
+@minLength(1)
+param authAudience string
+
+@description('Dedicated App Service plan SKU. B1 incurs a standing compute charge.')
+@allowed(['B1', 'B2', 'B3', 'S1', 'S2', 'S3'])
+param appServicePlanSku string = 'B1'
+
 var cosmosAccountName = 'cosmosreleasenotes${resourceNameSuffix}'
-var storageAccountName = take('stfn${replace(toLower(resourceNameSuffix), '-', '')}', 24)
-var hostingPlanName = 'asp-release-notes-${resourceNameSuffix}'
-var functionAppName = 'func-release-notes-${resourceNameSuffix}'
+var hostingPlanName = 'asp-release-notes-web-${resourceNameSuffix}'
+var webAppName = 'app-release-notes-${resourceNameSuffix}'
 var logAnalyticsWorkspaceName = 'log-release-notes-${resourceNameSuffix}'
 var appInsightsName = 'appi-release-notes-${resourceNameSuffix}'
-var deploymentContainerName = 'app-package'
 
 resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-08-15' = {
   name: cosmosAccountName
@@ -46,35 +61,6 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-08-15' = {
   }
 }
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
-  name: storageAccountName
-  location: location
-  sku: {
-    name: 'Standard_LRS'
-  }
-  kind: 'StorageV2'
-  properties: {
-    minimumTlsVersion: 'TLS1_2'
-    supportsHttpsTrafficOnly: true
-    allowBlobPublicAccess: false
-    allowSharedKeyAccess: false
-    networkAcls: {
-      bypass: 'AzureServices'
-      defaultAction: 'Allow'
-    }
-  }
-}
-
-resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
-  parent: storageAccount
-  name: 'default'
-}
-
-resource deploymentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
-  parent: blobService
-  name: deploymentContainerName
-}
-
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: logAnalyticsWorkspaceName
   location: location
@@ -102,59 +88,47 @@ resource hostingPlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: hostingPlanName
   location: location
   sku: {
-    name: 'FC1'
-    tier: 'FlexConsumption'
+    name: appServicePlanSku
+    tier: startsWith(appServicePlanSku, 'B') ? 'Basic' : 'Standard'
   }
   properties: {
     reserved: true
   }
 }
 
-resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
-  name: functionAppName
+resource webApp 'Microsoft.Web/sites@2023-12-01' = {
+  name: webAppName
   location: location
-  kind: 'functionapp,linux'
+  kind: 'app,linux'
   identity: {
     type: 'SystemAssigned'
   }
   properties: {
     serverFarmId: hostingPlan.id
-    functionAppConfig: {
-      deployment: {
-        storage: {
-          type: 'blobContainer'
-          value: '${storageAccount.properties.primaryEndpoints.blob}${deploymentContainerName}'
-          authentication: {
-            type: 'SystemAssignedIdentity'
-          }
-        }
-      }
-      scaleAndConcurrency: {
-        maximumInstanceCount: 100
-        instanceMemoryMB: 2048
-      }
-      runtime: {
-        name: 'dotnet-isolated'
-        version: dotnetVersion
-      }
-    }
+    httpsOnly: true
     siteConfig: {
+      linuxFxVersion: 'DOTNETCORE|${dotnetVersion}'
+      appCommandLine: 'dotnet Api.dll'
+      alwaysOn: true
+      minTlsVersion: '1.2'
+      scmMinTlsVersion: '1.2'
+      ftpsState: 'Disabled'
       appSettings: [
         {
-          name: 'AzureWebJobsStorage__accountName'
-          value: storageAccount.name
+          name: 'ASPNETCORE_ENVIRONMENT'
+          value: 'Production'
         }
         {
-          name: 'AzureWebJobsStorage__blobServiceUri'
-          value: storageAccount.properties.primaryEndpoints.blob
+          name: 'EasyAuth__TenantId'
+          value: authTenantId
         }
         {
-          name: 'AzureWebJobsStorage__queueServiceUri'
-          value: storageAccount.properties.primaryEndpoints.queue
+          name: 'EasyAuth__ClientId'
+          value: authClientId
         }
         {
-          name: 'AzureWebJobsStorage__tableServiceUri'
-          value: storageAccount.properties.primaryEndpoints.table
+          name: 'EasyAuth__Audience'
+          value: authAudience
         }
         {
           name: 'Cosmos__ConnectionString'
@@ -177,62 +151,36 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
   }
 }
 
-var storageBlobDataOwnerRoleId = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
-var storageQueueDataContributorRoleId = '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
-var storageTableDataContributorRoleId = '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
-
-resource storageBlobDataOwnerRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, functionApp.id, storageBlobDataOwnerRoleId)
-  scope: storageAccount
+resource authentication 'Microsoft.Web/sites/config@2023-12-01' = {
+  parent: webApp
+  name: 'authsettingsV2'
   properties: {
-    principalId: functionApp.identity.principalId
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDataOwnerRoleId)
-    principalType: 'ServicePrincipal'
+    platform: {
+      enabled: true
+    }
+    globalValidation: {
+      requireAuthentication: false
+      unauthenticatedClientAction: 'AllowAnonymous'
+    }
+    identityProviders: {
+      azureActiveDirectory: {
+        enabled: true
+        registration: {
+          clientId: authClientId
+          openIdIssuer: '${environment().authentication.loginEndpoint}${authTenantId}/v2.0'
+        }
+        validation: {
+          allowedAudiences: [authAudience, authClientId]
+        }
+      }
+    }
+    httpSettings: {
+      requireHttps: true
+    }
   }
 }
 
-resource storageQueueDataContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, functionApp.id, storageQueueDataContributorRoleId)
-  scope: storageAccount
-  properties: {
-    principalId: functionApp.identity.principalId
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageQueueDataContributorRoleId)
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource storageTableDataContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, functionApp.id, storageTableDataContributorRoleId)
-  scope: storageAccount
-  properties: {
-    principalId: functionApp.identity.principalId
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageTableDataContributorRoleId)
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
-  name: staticWebAppName
-  location: location
-  sku: {
-    name: 'Standard'
-    tier: 'Standard'
-  }
-  properties: {}
-}
-
-resource staticWebAppBackend 'Microsoft.Web/staticSites/linkedBackends@2023-12-01' = {
-  parent: staticWebApp
-  name: 'backend'
-  properties: {
-    backendResourceId: functionApp.id
-    region: location
-  }
-}
-
-output staticWebAppName string = staticWebApp.name
-output staticWebAppDefaultHostname string = staticWebApp.properties.defaultHostname
-output functionAppName string = functionApp.name
-output functionAppDefaultHostname string = functionApp.properties.defaultHostName
+output webAppName string = webApp.name
+output webAppDefaultHostname string = webApp.properties.defaultHostName
 output appInsightsName string = appInsights.name
 output appInsightsConnectionString string = appInsights.properties.ConnectionString

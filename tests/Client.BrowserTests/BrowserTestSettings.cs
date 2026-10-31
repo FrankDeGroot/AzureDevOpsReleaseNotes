@@ -14,7 +14,7 @@ internal sealed record BrowserTestSettings(Uri BaseUrl, BrowserApiMode ApiMode)
 
     internal static BrowserTestSettings Parse(string? baseUrl, string? apiMode)
     {
-        var configuredBaseUrl = string.IsNullOrWhiteSpace(baseUrl) ? "http://localhost:4280" : baseUrl;
+        var configuredBaseUrl = string.IsNullOrWhiteSpace(baseUrl) ? "http://localhost:7071" : baseUrl;
         if (!Uri.TryCreate(configuredBaseUrl, UriKind.Absolute, out var parsedBaseUrl) ||
             (parsedBaseUrl.Scheme != Uri.UriSchemeHttp && parsedBaseUrl.Scheme != Uri.UriSchemeHttps))
         {

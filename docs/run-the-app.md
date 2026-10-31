@@ -1,30 +1,21 @@
 # Run the app
 
-The dev container includes the .NET SDK, Azure Functions Core Tools, and Static Web Apps CLI. From the repository root, restore the solution and create the Functions host's local settings file:
+Rebuild the development container, then follow [Local emulators](local-emulators.md) for bootstrap and recovery. The workspace provides .NET 10, PowerShell 7, Azure CLI, and Playwright Chromium.
+
+From the repository root, start the single Development host:
 
 ```bash
-dotnet restore ReleaseNotes.slnx
-cp src/Api/local.settings.example.json src/Api/local.settings.json
+dotnet run --project src/Api
 ```
 
-Sign in to Azure CLI so the API can use your developer identity when calling Azure DevOps:
+Open `http://localhost:7071`. The same process serves the Blazor WebAssembly client and `/api`; no SWA proxy, separate client process, or Functions tools are needed. Configuration uses ordinary ASP.NET Core appsettings, environment variables, and user secrets, not `local.settings.json`.
 
-```bash
-az login
-```
+Static delivery and isolated tests require no Azure login or external-service connection. For real API data, the Cosmos emulator must be ready and trusted. Sign in with `az login` before compilation; your identity must have access to the Azure DevOps project. See [Integration tests](integration-tests.md) and [Client browser tests](client-browser-tests.md) for isolated versus live checks.
 
-Start each process in its own terminal from the repository root:
+## Authentication
 
-```bash
-dotnet run --project src/Client --launch-profile http
-```
+In Azure, `POST /api/releases/compile` requires an Entra bearer token accepted by App Service Easy Auth for the configured tenant and API audience. Missing authentication returns JSON HTTP 401, not a login redirect. The viewer, release reads, and health remain public. Function keys and `code` query parameters no longer authorize compilation.
 
-```bash
-cd src/Api && dotnet run
-```
+Only local Development bypasses inbound authentication. The bypass is disabled whenever App Service hosting markers are present, including an Azure app accidentally configured as Development. Never manufacture `X-MS-CLIENT-PRINCIPAL` headers: they are trusted only behind the Azure platform boundary, not on ordinary local hosts. The server's outbound Azure DevOps identity remains separate from the caller's token.
 
-```bash
-swa start http://localhost:5017 --api-devserver-url http://localhost:7071
-```
-
-Open `http://localhost:4280`. The Static Web Apps CLI serves the local app and routes `/api` requests to Functions. The API uses Azure CLI credentials in Development; in Azure it continues to use managed identity. Compiling release notes requires an Azure DevOps identity with access to the target organization and project. Application Insights is optional for local runs.
+Application Insights is optional locally. Set `APPLICATIONINSIGHTS_CONNECTION_STRING` for server telemetry; client telemetry uses its existing public configuration. Do not place API bearer tokens in client settings.

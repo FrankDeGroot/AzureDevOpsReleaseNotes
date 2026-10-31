@@ -17,7 +17,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$localOnlyKeys = @('RELEASE_NOTES_API_URL', 'FUNCTION_KEY')
+$localOnlyKeys = @('RELEASE_NOTES_API_URL', 'RELEASE_NOTES_API_TOKEN', 'FUNCTION_KEY')
 $secretPattern = 'SECRET|TOKEN|PASSWORD|KEY'
 
 if (-not (Test-Path $EnvFile)) {

@@ -4,6 +4,7 @@
     "Api": {
       "commandName": "Project",
       "dotnetRunMessages": true,
+      "applicationUrl": "http://localhost:7071",
       "environmentVariables": {
         "DOTNET_ENVIRONMENT": "Development"
       }

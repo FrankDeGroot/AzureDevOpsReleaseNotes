@@ -8,7 +8,7 @@ public sealed class BrowserTestSettingsTests
     {
         var settings = BrowserTestSettings.Parse(null, null);
 
-        Assert.Equal(new Uri("http://localhost:4280"), settings.BaseUrl);
+        Assert.Equal(new Uri("http://localhost:7071"), settings.BaseUrl);
         Assert.Equal(BrowserApiMode.Live, settings.ApiMode);
     }
 

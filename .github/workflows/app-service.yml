@@ -1,0 +1,135 @@
+name: App Service CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'tests/**', 'infra/**', 'scripts/**', '.devcontainer/**', '.github/workflows/**', 'package.json', 'Directory.Build.targets']
+  pull_request:
+    branches: [main]
+    paths: ['src/**', 'tests/**', 'infra/**', 'scripts/**', '.devcontainer/**', '.github/workflows/**', 'package.json', 'Directory.Build.targets']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: app-service-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Unit and host tests
+        run: dotnet test ReleaseNotes.slnx -c Release --filter 'Category!=Integration'
+      - name: Setup script checks
+        run: pwsh -NoProfile -File tests/Setup.Tests.ps1
+      - name: Compile infrastructure
+        run: az bicep build --file infra/main.bicep --stdout > /dev/null
+      - name: Install Chromium
+        run: pwsh tests/Client.BrowserTests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+      - name: Isolated browser checks
+        env:
+          CLIENT_API_MODE: stub
+          CLIENT_BASE_URL: http://localhost:7071
+        run: |
+          dotnet run --project src/Api -c Release --no-build > "$RUNNER_TEMP/release-notes.log" 2>&1 &
+          host_pid=$!
+          trap 'kill "$host_pid" || true' EXIT
+          curl --fail --silent --show-error --retry 20 --retry-delay 2 --retry-all-errors --retry-max-time 90 http://localhost:7071/ > /dev/null
+          dotnet test tests/Client.BrowserTests -c Release --no-build --filter 'Category=Integration'
+
+  deploy:
+    needs: validate
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      RELEASE_NOTES_AUTH_CLIENT_ID: ${{ vars.RELEASE_NOTES_AUTH_CLIENT_ID }}
+      RELEASE_NOTES_AUTH_AUDIENCE: ${{ vars.RELEASE_NOTES_AUTH_AUDIENCE }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Check deployment configuration
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+          AZURE_RESOURCE_SUFFIX: ${{ vars.AZURE_RESOURCE_SUFFIX }}
+        run: |
+          for setting in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_LOCATION AZURE_RESOURCE_SUFFIX RELEASE_NOTES_AUTH_CLIENT_ID RELEASE_NOTES_AUTH_AUDIENCE; do
+            if [[ -z "${!setting}" ]]; then
+              echo "::error::Missing required configuration: $setting"
+              exit 1
+            fi
+          done
+          for setting in AZURE_TENANT_ID RELEASE_NOTES_AUTH_CLIENT_ID; do
+            if [[ ! "${!setting}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] || [[ "${!setting}" == '00000000-0000-0000-0000-000000000000' ]]; then
+              echo "::error::Expected a configured non-placeholder identifier: $setting"
+              exit 1
+            fi
+          done
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy infrastructure
+        id: infrastructure
+        env:
+          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+          AZURE_RESOURCE_SUFFIX: ${{ vars.AZURE_RESOURCE_SUFFIX }}
+        run: |
+          deployment_json=$(az deployment sub create \
+            --name "release-notes-${{ github.run_id }}" \
+            --location "$AZURE_LOCATION" \
+            --template-file infra/main.bicep \
+            --parameters location="$AZURE_LOCATION" resourceNameSuffix="$AZURE_RESOURCE_SUFFIX" \
+              authTenantId="$AZURE_TENANT_ID" authClientId="$RELEASE_NOTES_AUTH_CLIENT_ID" authAudience="$RELEASE_NOTES_AUTH_AUDIENCE" \
+            --query properties.outputs --output json)
+          echo "web_app_name=$(jq -er '.webAppName.value' <<< "$deployment_json")" >> "$GITHUB_OUTPUT"
+          echo "web_app_hostname=$(jq -er '.webAppDefaultHostname.value' <<< "$deployment_json")" >> "$GITHUB_OUTPUT"
+          connection_string=$(jq -er '.appInsightsConnectionString.value' <<< "$deployment_json")
+          jq --arg connection_string "$connection_string" '.ApplicationInsights.ConnectionString = $connection_string' src/Client/wwwroot/appsettings.json > "$RUNNER_TEMP/client-appsettings.json"
+          cp "$RUNNER_TEMP/client-appsettings.json" src/Client/wwwroot/appsettings.json
+      - name: Publish combined application
+        run: dotnet publish src/Api/Api.csproj -c Release -o bin/app-publish
+      - name: Deploy combined application
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ steps.infrastructure.outputs.web_app_name }}
+          package: bin/app-publish
+      - name: Deployed API and authentication checks
+        env:
+          RELEASE_NOTES_API_URL: https://${{ steps.infrastructure.outputs.web_app_hostname }}/api
+          AZURE_DEVOPS_ORGANIZATION: ${{ vars.AZURE_DEVOPS_ORGANIZATION }}
+          AZURE_DEVOPS_PROJECT: ${{ vars.AZURE_DEVOPS_PROJECT }}
+          AZURE_DEVOPS_PROJECT_ID: ${{ vars.AZURE_DEVOPS_PROJECT_ID }}
+          AZURE_DEVOPS_REPOSITORY_ID: ${{ vars.AZURE_DEVOPS_REPOSITORY_ID }}
+          AZURE_DEVOPS_BUILD_ID: ${{ vars.AZURE_DEVOPS_BUILD_ID }}
+        run: |
+          api_token=$(az account get-access-token --resource "$RELEASE_NOTES_AUTH_AUDIENCE" --query accessToken --output tsv)
+          wrong_audience_token=$(az account get-access-token --resource https://management.azure.com/ --query accessToken --output tsv)
+          echo "::add-mask::$api_token"
+          echo "::add-mask::$wrong_audience_token"
+          curl --fail --silent --show-error --max-time 30 --retry 20 --retry-delay 3 --retry-all-errors --retry-max-time 180 "$RELEASE_NOTES_API_URL/releases?project=warmup" > /dev/null
+          RELEASE_NOTES_API_TOKEN="$api_token" RELEASE_NOTES_API_WRONG_AUDIENCE_TOKEN="$wrong_audience_token" \
+            dotnet test tests/Api.IntegrationTests -c Release --filter 'Category=Integration'
+      - name: Build browser checks
+        run: dotnet build tests/Client.BrowserTests -c Release
+      - name: Install Chromium
+        run: pwsh tests/Client.BrowserTests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+      - name: Deployed live browser checks
+        env:
+          CLIENT_API_MODE: live
+          CLIENT_BASE_URL: https://${{ steps.infrastructure.outputs.web_app_hostname }}
+        run: dotnet test tests/Client.BrowserTests -c Release --no-build --filter 'Category=Integration'

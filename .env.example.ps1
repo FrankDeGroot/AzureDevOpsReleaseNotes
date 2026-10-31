@@ -11,6 +11,10 @@ $env:AZURE_SUBSCRIPTION_ID = '00000000-0000-0000-0000-000000000000'
 $env:AZURE_LOCATION = 'westeurope'
 # Globally unique 3-24 character lowercase alphanumeric resource name suffix.
 $env:AZURE_RESOURCE_SUFFIX = 'contoso123'
+# API app registration, distinct from the deployment application's client ID.
+$env:RELEASE_NOTES_AUTH_CLIENT_ID = '00000000-0000-0000-0000-000000000000'
+# API audience accepted by Easy Auth and requested by workload callers.
+$env:RELEASE_NOTES_AUTH_AUDIENCE = 'api://00000000-0000-0000-0000-000000000000'
 
 # Azure DevOps organization name (the part after https://dev.azure.com/).
 $env:AZURE_DEVOPS_ORGANIZATION = 'my-organization'
@@ -25,5 +29,5 @@ $env:AZURE_DEVOPS_BUILD_ID = '1'
 
 # Local only: API base URL used by the integration tests.
 $env:RELEASE_NOTES_API_URL = 'http://localhost:7071/api'
-# Local only: function key; leave empty for the local Functions host.
-$env:FUNCTION_KEY = ''
+# Local only: optional short-lived bearer token for a deployed target; empty locally.
+$env:RELEASE_NOTES_API_TOKEN = ''
