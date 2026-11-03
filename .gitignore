@@ -17,3 +17,6 @@ infra/*.json
 
 # Node.js dependencies
 node_modules/
+
+# NuGet cache
+**/.local
