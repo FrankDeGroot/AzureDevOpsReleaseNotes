@@ -1,5 +1,5 @@
 {
-  "name": ".NET & Node.js",
+  "name": "${localWorkspaceFolderBasename}",
   "dockerComposeFile": "compose.yaml",
   "service": "workspace",
   "workspaceFolder": "/workspaces/AzureDevOpsReleaseNotes",
@@ -9,26 +9,28 @@
     "4280": { "label": "Application" }
   },
   "features": {
+    "ghcr.io/devcontainers/features/azure-cli:1": {},
     "ghcr.io/devcontainers/features/common-utils:2.7.1": {
       "username": "vscode"
     },
+    "ghcr.io/devcontainers/features/github-cli:1.1.3": {},
     "ghcr.io/devcontainers/features/node:2.1.1": {
       "version": "lts"
-    },
-    "ghcr.io/devcontainers/features/azure-cli:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1.1.3": {}
+    }
   },
   "customizations": {
     "vscode": {
       "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "github.vscode-github-actions",
+        "ms-azuretools.vscode-azurefunctions",
+        "ms-azuretools.vscode-azurestorage",
         "ms-azuretools.vscode-bicep",
         "ms-dotnettools.blazorwasm-companion",
         "ms-dotnettools.csdevkit",
         "ms-dotnettools.csharp",
-        "ms-azuretools.vscode-azurefunctions",
-        "ms-azuretools.vscode-azurestorage",
-        "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode"
+        "ms-vscode.powershell"
       ]
     }
   },
