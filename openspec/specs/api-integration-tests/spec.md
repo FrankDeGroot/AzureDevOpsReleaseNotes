@@ -42,24 +42,40 @@ The suite SHALL verify that the health endpoint returns HTTP 200 with overall st
 - **WHEN** the suite calls `GET health` on a correctly configured API
 - **THEN** the response is HTTP 200, overall status is `healthy`, and both the Cosmos DB and Azure DevOps checks report healthy
 
-### Requirement: Compile round-trip through Azure DevOps and Cosmos DB
-The suite SHALL compile release notes for the configured test build. It SHALL then read the stored record back from Cosmos DB through the API, by ID and in the project list. The test build has at least one commit and one linked work item.
+### Requirement: Asynchronous compile round-trip through Azure DevOps and release storage
+The suite SHALL submit a configured real Azure DevOps build, verify HTTP 202 and the acknowledgment, and poll until its release is available in Table Storage through the API. It SHALL verify read-by-ID and project listing. Polling SHALL stop after 120 seconds, retry only HTTP 404, and fail with actionable diagnostics on timeout or other errors. Worker execution SHALL NOT be inferred from a pre-existing record.
 
 #### Scenario: Compile a known build
 - **WHEN** the suite posts the configured organization, project, project ID, repository ID, and build ID to `POST releases/compile`
-- **THEN** the response is HTTP 200 with ID `{projectId}:{buildId}`, a non-empty build number, at least one commit, and at least one work item
+- **THEN** the response is HTTP 202 with ID `{projectId}:{buildId}`, project ID, a release URL, and a matching `Location` header
+- **AND** the acknowledgment is not deserialized as a compiled release document
 
 #### Scenario: Read back by ID
-- **WHEN** the suite calls `GET releases/{id}?projectId={projectId}` after a successful compile
-- **THEN** the response is HTTP 200 and contains the same build ID, commits, and work items
+- **WHEN** the suite polls an initially absent release after accepted compilation
+- **THEN** it eventually receives HTTP 200 with the configured build ID, a non-empty build number, at least one commit, and at least one linked work item
+- **AND** reads with and without project ID return the same document
 
 #### Scenario: Listed for project
-- **WHEN** the suite calls `GET releases?project={project}` after a successful compile
+- **WHEN** the suite calls `GET releases?project={project}` after background persistence
 - **THEN** the response contains a record with the compiled ID
 
 #### Scenario: Repeated compile is idempotent
-- **WHEN** the suite compiles the same build twice
-- **THEN** both calls succeed and the project list contains exactly one record with that ID
+- **WHEN** the suite submits the same build twice
+- **THEN** both submissions return HTTP 202 and the project list contains exactly one record with that ID
+- **AND** duplicate processing is verified by focused worker tests rather than by treating an existing GET response as evidence of the second worker execution
+
+#### Scenario: Polling expires
+- **WHEN** an initially absent release remains unavailable for 120 seconds
+- **THEN** the test fails with the release ID, last response, and directions to inspect processing logs and the poison queue
+
+#### Scenario: Non-retryable read failure
+- **WHEN** polling receives an authentication error, server error, or invalid release JSON
+- **THEN** the test fails immediately rather than hiding the error behind retries
+
+#### Scenario: Previously compiled test build
+- **WHEN** the configured release already exists before the round-trip test starts
+- **THEN** the freshness-dependent test fails clearly and directs the operator to use a new real build ID
+- **AND** it does not report queue processing as verified by that record
 
 ### Requirement: Local integration run
 The suite SHALL run against a locally hosted API that uses the dev-container Cosmos DB emulator and the real Azure DevOps service. Azure DevOps is authenticated with the developer's Azure CLI sign-in. No Azure-hosted Cosmos DB or Function App SHALL be required.
