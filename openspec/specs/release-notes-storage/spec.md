@@ -7,11 +7,11 @@ Stores and retrieves structured release notes documents in Azure Cosmos DB for f
 ## Requirements
 
 ### Requirement: Persist release note documents
-The system SHALL persist compiled release note records in an Azure Cosmos DB container with deterministic document identifiers partitioned by project or repository ID.
+The system SHALL persist compiled release note records in Azure Storage Tables with deterministic record identifiers derived from project or repository identity.
 
 #### Scenario: Successfully storing a release note
 - **WHEN** a release note document is compiled
-- **THEN** it is upserted into the Cosmos DB container with build details, work item metadata, and commit summaries
+- **THEN** it is upserted into the configured Azure Storage Table with build details, work item metadata, and commit summaries
 
 ### Requirement: Query release notes
 The system SHALL support retrieving release notes by project and build ID, or listing recent releases.

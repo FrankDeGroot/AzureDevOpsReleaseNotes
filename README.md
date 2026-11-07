@@ -1,6 +1,6 @@
 # Azure DevOps Release Notes
 
-Compiles related commits and Work Items of Azure DevOps builds triggered by the build run itself through an API exposed by an Azure Function, stores it in Cosmos DB and displays it in a Blazor Static Web App.
+Compiles release notes from related commits and Work Items for Azure DevOps builds triggered by the build run itself. An Azure Function API stores the compiled release notes in Azure Storage Tables, and a Blazor Static Web App displays them.
 
 ## Table of Contents
 
