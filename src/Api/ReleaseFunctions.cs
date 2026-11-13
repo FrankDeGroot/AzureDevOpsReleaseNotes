@@ -1,13 +1,18 @@
 using System.Net;
 using System.Text.Json;
+using Azure;
 using Api.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
 using Shared;
 
 namespace Api;
 
-public sealed class ReleaseFunctions(ReleaseNoteCompiler compiler, IReleaseNoteStore store)
+public sealed class ReleaseFunctions(
+    ICompilationQueueSubmission queueSubmission,
+    IReleaseNoteStore store,
+    ILogger<ReleaseFunctions> logger)
 {
     [Function("CompileRelease")]
     public async Task<HttpResponseData> Compile(
@@ -17,7 +22,10 @@ public sealed class ReleaseFunctions(ReleaseNoteCompiler compiler, IReleaseNoteS
         CompileRequest? input;
         try
         {
-            input = await request.ReadFromJsonAsync<CompileRequest>(cancellationToken);
+            input = await JsonSerializer.DeserializeAsync<CompileRequest>(
+                request.Body,
+                new JsonSerializerOptions(JsonSerializerDefaults.Web),
+                cancellationToken);
         }
         catch (JsonException)
         {
@@ -30,8 +38,30 @@ public sealed class ReleaseFunctions(ReleaseNoteCompiler compiler, IReleaseNoteS
         }
 
         input.ProjectId = string.IsNullOrWhiteSpace(input.ProjectId) ? input.Project : input.ProjectId;
-        var response = request.CreateResponse(HttpStatusCode.OK);
-        await response.WriteAsJsonAsync(await compiler.CompileAsync(input, cancellationToken), cancellationToken);
+        var id = $"{input.ProjectId}:{input.BuildId}";
+        var releaseUrl = $"/api/releases/{Uri.EscapeDataString(id)}?projectId={Uri.EscapeDataString(input.ProjectId)}";
+        try
+        {
+            await queueSubmission.SubmitAsync(input, cancellationToken);
+        }
+        catch (CompilationQueueMessageTooLargeException exception)
+        {
+            return await ErrorAsync(request, HttpStatusCode.BadRequest, exception.Message);
+        }
+        catch (RequestFailedException exception)
+        {
+            logger.LogError(exception, "Failed to queue release compilation {ReleaseId}.", id);
+            return await ErrorAsync(request, HttpStatusCode.ServiceUnavailable, "The compilation request could not be queued. Please retry.");
+        }
+
+        var response = request.CreateResponse(HttpStatusCode.Accepted);
+        response.Headers.Add("Location", releaseUrl);
+        await response.WriteAsJsonAsync(new CompileReleaseAcknowledgment
+        {
+            Id = id,
+            ProjectId = input.ProjectId,
+            ReleaseUrl = releaseUrl
+        }, cancellationToken);
         return response;
     }
 

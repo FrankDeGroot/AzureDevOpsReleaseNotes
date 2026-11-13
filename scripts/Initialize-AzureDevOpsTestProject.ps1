@@ -10,13 +10,16 @@
     Writes the resulting AZURE_DEVOPS_* keys to .env. Authenticates with the current Azure CLI sign-in.
 .EXAMPLE
     ./scripts/Initialize-AzureDevOpsTestProject.ps1 -Organization my-org
+.EXAMPLE
+    ./scripts/Initialize-AzureDevOpsTestProject.ps1 -Organization my-org -NewBuild
 #>
 [CmdletBinding()]
 param(
     [string]$Organization = $env:AZURE_DEVOPS_ORGANIZATION,
     [string]$Project = ($env:AZURE_DEVOPS_PROJECT ? $env:AZURE_DEVOPS_PROJECT : 'ReleaseNotesIntegration'),
     [string]$FunctionAppName = ($env:AZURE_RESOURCE_SUFFIX ? "func-release-notes-$($env:AZURE_RESOURCE_SUFFIX)" : ''),
-    [string]$EnvFile = (Join-Path $PSScriptRoot '..' '.env')
+    [string]$EnvFile = (Join-Path $PSScriptRoot '..' '.env'),
+    [switch]$NewBuild
 )
 
 Set-StrictMode -Version Latest
@@ -209,17 +212,22 @@ function Test-QualifyingBuild([int]$BuildId) {
     $changes.count -gt 0 -and $workItems.count -gt 0
 }
 
-function Get-OrCreateBuild($ProjectInfo, $Repository, $Pipeline, [int]$WorkItemId) {
+function Get-OrCreateBuild($ProjectInfo, $Repository, $Pipeline, [int]$WorkItemId, [switch]$NewBuild) {
     $builds = @((Invoke-Ado -Uri "$projectUrl/_apis/build/builds?definitions=$($Pipeline.id)&statusFilter=completed&resultFilter=succeeded&queryOrder=finishTimeDescending&`$top=10&$apiVersion").value)
-    foreach ($build in $builds) {
-        if (Test-QualifyingBuild $build.id) {
-            Write-Host "Using build $($build.id)."
-            return [int]$build.id
+    if (-not $NewBuild) {
+        foreach ($build in $builds) {
+            if (Test-QualifyingBuild $build.id) {
+                Write-Host "Using build $($build.id)."
+                return [int]$build.id
+            }
         }
+    }
+    else {
+        Write-Host 'NewBuild requested; skipping qualifying-build reuse.'
     }
 
     # A rebuild of an already-built commit reports no changes, so push a new commit first.
-    $needsCommit = $builds.Count -gt 0
+    $needsCommit = $NewBuild -or $builds.Count -gt 0
     foreach ($attempt in 1..2) {
         if ($needsCommit) {
             $head = Get-MainHead $Repository.id
@@ -311,7 +319,7 @@ $repository = Invoke-Ado -Uri "$projectUrl/_apis/git/repositories/$([Uri]::Escap
 $workItemId = Get-OrCreateSeedWorkItem
 Initialize-Repository $projectInfo $repository $workItemId
 $pipeline = Get-OrCreatePipeline $repository
-$buildId = Get-OrCreateBuild $projectInfo $repository $pipeline $workItemId
+$buildId = Get-OrCreateBuild $projectInfo $repository $pipeline $workItemId -NewBuild:$NewBuild
 Grant-FunctionAppAccess $projectInfo
 
 Set-EnvValues $EnvFile ([ordered]@{

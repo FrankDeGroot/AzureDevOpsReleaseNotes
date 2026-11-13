@@ -16,4 +16,10 @@ If your `.env` uses the older keys, rename `TENANT_ID` and `CLIENT_ID` to `AZURE
 
 The deployed Function App receives `Storage__TableEndpoint` and `Storage__TableName` from Bicep. Its system-assigned identity accesses the existing StorageV2 account through the Storage Table Data Contributor role; do not add a storage account key to `.env` or GitHub Actions settings. Local Table Storage connection settings belong in the API's local-only settings and are documented in [Local emulators](local-emulators.md).
 
+## Compilation queue
+
+The Functions host and API producer use the existing `AzureWebJobsStorage` setting for queue access. Locally, `src/Api/local.settings.json` points it at Azurite with `UseDevelopmentStorage=true`. In Azure, Bicep sets `AzureWebJobsStorage__queueServiceUri`; the Function App's system-assigned identity uses the existing Storage Queue Data Contributor role. Do not add a separate queue key or storage account key to `.env` or GitHub Actions settings.
+
+The work queue is `release-note-compilation`; failed messages are retained in `release-note-compilation-poison` after five total dequeue attempts. Messages do not expire and are deleted from the work queue only after successful persistence. Inspect and explicitly replay selected poison messages after correcting the underlying issue; deployments and rollbacks must preserve both queues and their backlogs.
+
 The `releases` table starts empty after cutover. Existing Cosmos records are not copied and remain in the existing Cosmos account. Rolling back to the Cosmos-backed app restores access to old records, but not to releases written to Table Storage after cutover.

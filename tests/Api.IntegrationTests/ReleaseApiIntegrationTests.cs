@@ -9,22 +9,24 @@ namespace Api.IntegrationTests;
 public sealed class ReleaseApiIntegrationTests(CompiledReleaseFixture fixture) : IClassFixture<CompiledReleaseFixture>
 {
     [Fact]
-    public void Compile_ReturnsReleaseNotesFromAzureDevOps()
+    public void Compile_ReturnsAcceptanceThenReleaseFromAzureDevOps()
     {
-        Assert.True(fixture.CompileStatus == HttpStatusCode.OK, $"Compile returned HTTP {(int)fixture.CompileStatus}: {fixture.CompileBody}");
-        var document = JsonSerializer.Deserialize<ReleaseNoteDocument>(fixture.CompileBody, CompiledReleaseFixture.JsonOptions)!;
+        Assert.Equal(HttpStatusCode.Accepted, fixture.CompileStatus);
+        Assert.Equal(fixture.ExpectedId, fixture.Acknowledgment.Id);
+        Assert.Equal(fixture.Settings.ProjectId, fixture.Acknowledgment.ProjectId);
+        Assert.Equal(fixture.Acknowledgment.ReleaseUrl, fixture.CompileLocation);
 
-        Assert.Equal(fixture.ExpectedId, document.Id);
-        Assert.Equal(fixture.Settings.BuildId, document.BuildId);
-        Assert.False(string.IsNullOrWhiteSpace(document.BuildNumber));
-        Assert.NotEmpty(document.Commits);
-        Assert.NotEmpty(document.WorkItems);
+        Assert.Equal(fixture.ExpectedId, fixture.CompiledRelease.Id);
+        Assert.Equal(fixture.Settings.BuildId, fixture.CompiledRelease.BuildId);
+        Assert.False(string.IsNullOrWhiteSpace(fixture.CompiledRelease.BuildNumber));
+        Assert.NotEmpty(fixture.CompiledRelease.Commits);
+        Assert.NotEmpty(fixture.CompiledRelease.WorkItems);
     }
 
     [Fact]
     public async Task GetById_ReadsStoredReleaseWithAndWithoutProjectId()
     {
-        Assert.Equal(HttpStatusCode.OK, fixture.CompileStatus);
+        Assert.Equal(HttpStatusCode.Accepted, fixture.CompileStatus);
 
         var documentWithProjectId = await fixture.Client.GetFromJsonAsync<ReleaseNoteDocument>(
             $"releases/{Uri.EscapeDataString(fixture.ExpectedId)}?projectId={Uri.EscapeDataString(fixture.Settings.ProjectId)}",
@@ -37,6 +39,9 @@ public sealed class ReleaseApiIntegrationTests(CompiledReleaseFixture fixture) :
         Assert.NotNull(documentWithoutProjectId);
         Assert.Equal(fixture.ExpectedId, documentWithProjectId.Id);
         Assert.Equal(fixture.Settings.BuildId, documentWithProjectId.BuildId);
+        Assert.Equal(fixture.CompiledRelease.BuildNumber, documentWithProjectId.BuildNumber);
+        Assert.Equal(fixture.CompiledRelease.Commits.Select(commit => commit.Id), documentWithProjectId.Commits.Select(commit => commit.Id));
+        Assert.Equal(fixture.CompiledRelease.WorkItems.Select(item => item.Id), documentWithProjectId.WorkItems.Select(item => item.Id));
         Assert.Equal(
             JsonSerializer.Serialize(documentWithProjectId, CompiledReleaseFixture.JsonOptions),
             JsonSerializer.Serialize(documentWithoutProjectId, CompiledReleaseFixture.JsonOptions));
@@ -45,24 +50,27 @@ public sealed class ReleaseApiIntegrationTests(CompiledReleaseFixture fixture) :
     }
 
     [Fact]
-    public async Task Recompile_IsIdempotentInProjectList()
+    public async Task Recompile_IsAcceptedAndProjectListRemainsUnique()
     {
-        Assert.Equal(HttpStatusCode.OK, fixture.CompileStatus);
-        var (status, body) = await fixture.CompileAsync();
-        Assert.True(status == HttpStatusCode.OK, $"Second compile returned HTTP {(int)status}: {body}");
+        Assert.Equal(HttpStatusCode.Accepted, fixture.CompileStatus);
+        var (status, body, _) = await fixture.CompileAsync();
+        Assert.True(status == HttpStatusCode.Accepted, $"Second compile returned HTTP {(int)status}: {body}");
 
         var documents = await fixture.Client.GetFromJsonAsync<List<ReleaseNoteDocument>>(
             $"releases?project={Uri.EscapeDataString(fixture.Settings.Project)}",
             CompiledReleaseFixture.JsonOptions);
 
         Assert.NotNull(documents);
-        Assert.Single(documents, document => document.Id == fixture.ExpectedId);
+        var listedRelease = Assert.Single(documents, document => document.Id == fixture.ExpectedId);
+        Assert.Equal(fixture.CompiledRelease.BuildNumber, listedRelease.BuildNumber);
+        Assert.Equal(fixture.CompiledRelease.Commits.Select(commit => commit.Id), listedRelease.Commits.Select(commit => commit.Id));
+        Assert.Equal(fixture.CompiledRelease.WorkItems.Select(item => item.Id), listedRelease.WorkItems.Select(item => item.Id));
     }
 
     [Fact]
     public async Task Health_ReportsTableStorageAndAzureDevOpsHealthy()
     {
-        Assert.Equal(HttpStatusCode.OK, fixture.CompileStatus);
+        Assert.Equal(HttpStatusCode.Accepted, fixture.CompileStatus);
 
         using var response = await fixture.Client.GetAsync("health");
         var body = await response.Content.ReadAsStringAsync();

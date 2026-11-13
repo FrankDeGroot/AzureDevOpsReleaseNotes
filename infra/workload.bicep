@@ -46,6 +46,23 @@ resource releaseNotesTable 'Microsoft.Storage/storageAccounts/tableServices/tabl
   name: 'releases'
 }
 
+resource queueService 'Microsoft.Storage/storageAccounts/queueServices@2023-05-01' existing = {
+  parent: storageAccount
+  name: 'default'
+}
+
+resource compilationQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
+  parent: queueService
+  name: 'release-note-compilation'
+  properties: {}
+}
+
+resource compilationPoisonQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
+  parent: queueService
+  name: 'release-note-compilation-poison'
+  properties: {}
+}
+
 resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
   parent: storageAccount
   name: 'default'
@@ -132,6 +149,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'AzureWebJobsStorage__queueServiceUri'
           value: storageAccount.properties.primaryEndpoints.queue
+        }
+        {
+          name: 'CompilationQueueName'
+          value: compilationQueue.name
         }
         {
           name: 'AzureWebJobsStorage__tableServiceUri'

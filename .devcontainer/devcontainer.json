@@ -34,7 +34,7 @@
       ]
     }
   },
-  "onCreateCommand": "sudo apt-get update && sudo apt-get install -y ripgrep && gh --version",
+  "onCreateCommand": "sudo apt-get update && sudo apt-get install -y ripgrep && az extension add --name azure-devops",
   "postCreateCommand": "npm install -g --foreground-scripts @fission-ai/openspec@latest @azure/static-web-apps-cli azure-functions-core-tools@4 && func --version",
   "remoteUser": "vscode"
 }

@@ -64,7 +64,7 @@ public sealed record IntegrationSettings(
             handler = new FunctionKeyHandler(FunctionKey) { InnerHandler = handler };
         }
 
-        return new HttpClient(handler) { BaseAddress = ApiBaseUrl, Timeout = TimeSpan.FromSeconds(100) };
+        return new HttpClient(handler) { BaseAddress = ApiBaseUrl, Timeout = Timeout.InfiniteTimeSpan };
     }
 
     // The Static Web App proxy drops the x-functions-key header but forwards the code query parameter.

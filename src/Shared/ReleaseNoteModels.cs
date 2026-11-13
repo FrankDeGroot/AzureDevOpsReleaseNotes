@@ -54,3 +54,13 @@ public sealed class CompileRequest
     public int BuildId { get; set; }
     public string RepositoryId { get; set; } = string.Empty;
 }
+
+public sealed class CompileReleaseAcknowledgment
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+    [JsonPropertyName("projectId")]
+    public string ProjectId { get; set; } = string.Empty;
+    [JsonPropertyName("releaseUrl")]
+    public string ReleaseUrl { get; set; } = string.Empty;
+}
