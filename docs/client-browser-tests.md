@@ -28,3 +28,11 @@ For an isolated UI run, keep the client and Static Web Apps CLI running and expl
 ```bash
 CLIENT_API_MODE=stub dotnet test tests/Client.BrowserTests --filter "Category=Integration" -p:BaseOutputPath=/tmp/client-browser-tests-build/
 ```
+
+## Ubuntu 26.04 Follow-Up
+
+The deployment workflow is pinned to `ubuntu-24.04` because run [43499184684](https://github.com/FrankDeGroot/AzureDevOpsReleaseNotes/actions/runs/43499184684) failed to install Chromium on Ubuntu 26.04 with the currently installed Playwright version.
+
+- Analyze Playwright for .NET and its bundled driver/browser versions, including Ubuntu 26.04 dependency support.
+- Fix the compatibility issue and verify Chromium installation and the full live browser suite on an Ubuntu 26.04 runner.
+- Remove or revise the runner pin only after that verification passes.
