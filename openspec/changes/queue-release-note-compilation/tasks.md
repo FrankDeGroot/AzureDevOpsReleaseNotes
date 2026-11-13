@@ -33,7 +33,7 @@
 
 - [x] 5.1 Run the API unit tests and build/publish after all changes; verify compilation, generated queue trigger registration, and unchanged HTTP read/error contracts, without starting live tests in the unit-only run.
 - [x] 5.2 Run the local real-host integration round trip against Azurite and a fresh qualifying Azure DevOps build; verify HTTP 202 followed by an initially absent release becoming available, expected commits/work items, and one record after repeated submission.
-- [ ] 5.3 Prepare a separate fresh deployed test build, deploy queues then the updated Functions package, and run the existing deployed integration workflow; verify actual background persistence, masked Function credentials, no poison message for successful work, and unchanged viewer reads.
+- [x] 5.3 Prepare a separate fresh deployed test build, deploy queues then the updated Functions package, and run the existing deployed integration workflow; verify actual background persistence, masked Function credentials, no poison message for successful work, and unchanged viewer reads.
 
 ## Workflow follow-up
 
