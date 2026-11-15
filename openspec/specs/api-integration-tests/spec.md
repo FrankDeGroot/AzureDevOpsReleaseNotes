@@ -98,3 +98,14 @@ The GitHub Actions workflow SHALL exclude integration tests from its pre-deploy 
 #### Scenario: Integration failure fails the workflow
 - **WHEN** any integration test fails against the deployed API
 - **THEN** the workflow run fails
+
+### Requirement: Queue lifecycle verification
+Focused queue tests SHALL verify transport serialization, eventual processing, duplicate delivery, and retry exhaustion using isolated test queues and test-owned records. A running Functions-host check SHALL verify that an accepted request can be processed by the registered queue trigger. Test cleanup SHALL NOT delete shared queues or release data.
+
+#### Scenario: Actual trigger processes submitted work
+- **WHEN** a running Functions host accepts compilation for a previously absent test-owned release
+- **THEN** the registered queue trigger persists that release without directly invoking the worker from the test
+
+#### Scenario: Poison-message lifecycle
+- **WHEN** an isolated host receives a message that fails all five dequeue attempts
+- **THEN** the message appears in the test poison queue and the test fails if it is silently discarded

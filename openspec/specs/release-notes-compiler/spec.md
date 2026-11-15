@@ -43,3 +43,21 @@ The system SHALL query the Azure DevOps REST API for the build's changes and lin
 #### Scenario: Successful Azure DevOps query
 - **WHEN** querying Azure DevOps REST APIs with valid credentials
 - **THEN** all associated commits and work items (with titles, IDs, states, and types) are retrieved and aggregated
+
+### Requirement: Release reads expose availability rather than job status
+Callers SHALL use the existing release GET endpoint to read available results. Reads SHALL retain existing HTTP 404 behavior before first persistence. An existing release SHALL remain readable while recompilation is queued or running. HTTP 202 SHALL indicate submission only, not completion or guaranteed eventual success.
+
+#### Scenario: First compilation still pending
+- **WHEN** a caller follows the acknowledged release URL before a release has been persisted
+- **THEN** the GET endpoint returns the existing HTTP 404 error
+- **AND** it returns the release document after background persistence succeeds
+
+#### Scenario: Existing release is recompiled
+- **WHEN** a caller submits a build with a previously persisted release
+- **THEN** reads can return that previous document immediately
+- **AND** a successful GET does not establish that the latest submission completed
+
+#### Scenario: Compilation permanently fails
+- **WHEN** accepted work exhausts background retries without storing its first release
+- **THEN** release GET continues to return HTTP 404
+- **AND** the caller must use a bounded polling timeout and operator diagnostics rather than interpret acceptance as success
